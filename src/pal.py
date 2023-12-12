@@ -139,7 +139,9 @@ class PaL:
         if self.ARGS.dryrun:
             return
         if self.ARGS.symbol_link:
-            os.symlink(os.path.relpath(dst, src), dst)
+            if os.path.islink(dst):
+                os.remove(dst)
+            os.symlink(os.path.relpath(src, os.path.dirname(dst)), dst)
         else:
             os.link(src, dst)
     
