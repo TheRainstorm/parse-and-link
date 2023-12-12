@@ -3,3 +3,7 @@ __pycache__/
 *.log
 .env
 failed.json
+tv.json
+tv_anime.json
+movie.json
+movie_anime.json

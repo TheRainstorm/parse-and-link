@@ -71,6 +71,9 @@ class PaL:
                             action='store_true',
                             default=True,
                             help='logging link mapping in link_dst/links.log')
+        parser.add_argument('--failed-json',
+                            default='failed.json',
+                            help='specify the file path to save failed result, default "failed.json"')
         # given the IMDb id, no need to parse from filename. working with other frontend tools
         parser.add_argument('--imdbid',
                             default='',
@@ -159,6 +162,8 @@ class PaL:
             meta['season'] = 1
         if 'screen_size' not in meta:
             meta['screen_size'] = ''
+        if 'year' not in meta:
+            meta['year'] = ''
         
         # failed to parse, save to failed list
         if 'title' not in meta:
@@ -209,15 +214,14 @@ class PaL:
                     logging.info(f"Skip: {os.path.relpath(file_path, self.ARGS.media_src)}")
                     continue
                 
-            # cached file, skip
+            # check cache
             if file_path in cache:
-                meta = cache[file_path]
                 logging.info(f" Hit: {os.path.relpath(file_path, self.ARGS.media_src)}")
-                if meta['link_dst'] == self.ARGS.link_dst:
-                    continue
+                meta = cache[file_path]
             else:
                 meta, msg = self.get_meta_guessit(file_path)
                 if meta is None:
+                    # parse failed
                     logging.warning(f" {msg:10}: {os.path.relpath(file_path, self.ARGS.media_src)}")
                     continue
             
@@ -247,8 +251,6 @@ class PaL:
             self.link(file_path, link_path)
             
             # cache
-            meta['link_dst'] = self.ARGS.link_dst  # add link_dst to meta
-            meta['link_rel_path'] = os.path.relpath(link_path, self.ARGS.link_dst)
             cache[file_path] = meta
             
             # save link mapping
@@ -256,7 +258,7 @@ class PaL:
                 link_file.write(f"{os.path.relpath(file_path, self.ARGS.media_src):50} -> {os.path.relpath(link_path, self.ARGS.link_dst)}\n")
         
         # handle failed files
-        with open('failed.json', 'w', encoding='utf-8') as f:
+        with open(self.ARGS.failed_json, 'w', encoding='utf-8') as f:
             json.dump({'miss_title_files':self.miss_title_files,
                        'miss_ep_files':self.miss_ep_files,
                        'miss_type_files':self.miss_type_files
