@@ -2,6 +2,7 @@ __pycache__/
 .vscode/
 *.log
 .env
+*.pkl
 failed.json
 tv.json
 tv_anime.json

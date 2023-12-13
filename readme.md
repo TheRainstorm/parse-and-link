@@ -348,3 +348,7 @@ OVA，可能位于一级目录
     }
 },
 ```
+
+## Thanks
+
+- [guessit](https://github.com/guessit-io/guessit), License: LGPLv3

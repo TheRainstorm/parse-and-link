@@ -148,14 +148,26 @@ class PaL:
         else:
             os.link(src, dst)
     
-    def get_meta_guessit(self, file_path):
+    def parse_filename_guessit(self, filename):
+        from guessit import guessit
+        
+        # output = self.run_cmd(f'guessit "{filename}"')
+        # m = re.search(r'{.*}', output, re.M |re.DOTALL)
+        # if not m:
+        #     return None
+        # meta = json.loads(m.group(0))
+        # return meta
+        return guessit(filename)
+    
+    # def parse_filename_gpt(self, filename):
+    #     from Spark.Spark_parser import get_metadata
+    #     meta = get_metadata([filename])
+        
+    def get_meta(self, file_path):
         filename = os.path.basename(file_path)
-        output = self.run_cmd(f'guessit "{filename}"')
-        m = re.search(r'{.*}', output, re.M |re.DOTALL)
-        if not m:
-            logging.error(f'failed to parse {filename}')
+        meta = self.parse_filename_guessit(filename)
+        if meta is None:
             return None, "failed to parse"
-        meta = json.loads(m.group(0))
         
         # check meta
         if 'season' not in meta:
@@ -219,7 +231,7 @@ class PaL:
                 logging.info(f" Hit: {os.path.relpath(file_path, self.ARGS.media_src)}")
                 meta = cache[file_path]
             else:
-                meta, msg = self.get_meta_guessit(file_path)
+                meta, msg = self.get_meta(file_path)
                 if meta is None:
                     # parse failed
                     logging.warning(f" {msg:10}: {os.path.relpath(file_path, self.ARGS.media_src)}")
