@@ -62,7 +62,23 @@ if __name__ == "__main__":
         "秒速5厘米 轨迹照片回顾.mkv"
     ]
 
-    filename_list = movie_list
+    failed_tv_anime = [
+        "[Niconeiko Works] Kaguya-sama wa Kokurasetai First Kiss wa Owaranai [1080P_Ma10p_FLAC_DTS-HDMA][03].mkv",
+        "[Sakurato] Kage no Jitsuryokusha ni Naritakute! S2 [01][HEVC-10bit 1080P AAC][CHS&CHT].mkv",
+        "[Nekomoe kissaten&LoliHouse] Zom 100 - Zombie ni Naru made ni Shitai 100 no Koto - 06 [WebRip 1080p HEVC-10bit AAC ASSx2].mkv",
+        "[BeanSub&FZSD][Kimetsu_no_Yaiba][49][GB][1080P][x264_AAC].mp4",
+        "Oshi no Ko [10][AVC-8bit 1080p AAC][CHS&JPN].mp4",
+        "Nier - Automata Ver1.1a - S01E01 - or not to [B]e.mkv",
+        "Kage no Jitsuryokusha ni Naritakute! 2nd Season [04][HEVC-10bit 1080p AAC][CHS&CHT].mkv",
+        "[VCB-Studio] Sword Art Online II [14][Ma10p_1080p][x265_flac].mkv",
+        "[Sakurato] Spy x Family Season 2 [04][HEVC-10bit 1080p AAC][CHS&CHT].mkv",
+    ]
+    failed_movie_anime = [
+        "[Mabors Sub][Sword Art Online Progressive Kuraki Yuuyami No Scherzo][GB][1080P][x264-10bit Aac].mp4",
+        "[Evangelion 3.33 You Can (Not) Redo.][JPN][BDRIP][1920x816][H264_FLACx2].mkv",
+        "[FLsnow][Okamikodomo_no_Ame_to_Yuki][MAIN_MOVIE][BDRIP][AVC_AAC_AC3][1080p].mkv",
+    ]
+    filename_list = failed_tv_anime + failed_movie_anime
 
     metadata, _ = get_metadata(filename_list)
     # metadata = load_obj("metadata.pkl")
