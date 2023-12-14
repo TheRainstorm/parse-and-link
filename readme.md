@@ -43,6 +43,71 @@
   - 使用AI算法，提取关键字
   - 最使用chatgpt API识别
 
+## 使用
+
+### 识别错误后处理
+
+**手动设置title等信息**
+
+手动修改源目录的数据文件`cache.json`
+- 对于识别不正确的，修改title即可
+- 对于识别失败的(`failed=1`)，设置好title后，删除`failed`字段
+
+重新运行程序，程序会删除原本链接，然后生成新连接。
+
+例子：
+```json
+"/mnt/Disk2/BT/downloads/Video/Movie_anime/穿越时空的少女.2006.TWN.1080p.中日双语.简繁中字￡CMCT利姆鲁/[穿越时空的少女].The.Girl.Who.Leapt.Through.Time.TWN.2006.BluRay.1080p.x264.AC3.2Audios-CMCT.mkv": {
+    "title": "The Girl Who Leapt Through Time TWN",
+    "year": 2006,
+    "source": "Blu-ray",
+    "screen_size": "1080p",
+    "video_codec": "H.264",
+    "audio_codec": "Dolby Digital",
+    "release_group": "2Audios-CMCT",
+    "container": "mkv",
+    "mimetype": "video/x-matroska",
+    "type": "movie",
+    "failed": 0,
+    "season": 1,
+    "relpath": "Movie_anime/The Girl Who Leapt Through Time TWN/The Girl Who Leapt Through Time TWN (2006).1080p.mkv"
+  },
+```
+删除导致jellyfin无法识别的标题中的"TWN"后，重新运行程序。可以看到日志输出了删除旧链接，创建新链接的路径。
+```bash
+2023-12-14 14:01:00 INFO Remove: Movie_anime/The Girl Who Leapt Through Time TWN/The Girl Who Leapt Through Time TWN (2006).1080p.mkv
+2023-12-14 14:01:00 INFO 穿越时空的少女.2006.TWN.1080p.中日双语.简繁中字￡CMCT利姆鲁/[穿越时空的少女].The.Girl.Who.Leapt.Through.Time.TWN.2006.BluRay.1080p.x264.AC3.2Audios-CMCT.mkv -> Movie_anime/The Girl Who Leapt Through Time/The Girl Who Leapt Through Time (2006).1080p.mkv
+```
+
+**忽略文件**
+
+对于一些不必要的文件，可以在`skip.txt`中添加忽略规则，程序会忽略这些文件，并从数据库中删除。
+
+规则文件格式：
+- 一行一个规则，`#`开始的为注释。
+- 规则指定了需要忽略的模式，文件路径包含模式字符串则会被忽略
+- `!`反向匹配，即不忽略
+
+```
+/Sample
+/SP
+Extras/
+![Evangelion 3.0+1.11 Thrice Upon a Time][JPN][BDRIP][1920x816][H264_FLACx3].mkv
+![Evangelion 3.33 You Can (Not) Redo.][JPN][BDRIP][1920x816][H264_FLACx2].mkv
+![Evangelion 2.22 You Can (Not) Advance][JPN][BDRIP][1080P][H264_AC3_DTS-HDMA].mkv
+![Evangelion 1.11 You Are (Not) Alone][BDRIP][1080P][H264_AC3_DTS-HDMA].mkv
+Evangelion Shin Gekijouban 01-04/
+```
+
+示例输出
+```
+2023-12-14 15:54:51 INFO cache ignore: [ANK-Raws] 西游记之大圣归来 (BDrip 1920x1080 HEVC-YUV420P10 FLAC DTS-HDMA SUP)/「日本版予告編」.mkv
+2023-12-14 15:54:51 INFO cache ignore: 5.Centimeters.Per.Second.2007.BluRay.1080p-ted423@FRDS/Extras/Makoto.Shinkai.interview.mkv
+2023-12-14 15:54:51 INFO cache ignore: 5.Centimeters.Per.Second.2007.BluRay.1080p-ted423@FRDS/Extras/One.more.time,One.more.chance.mkv
+2023-12-14 15:54:51 INFO Remove: Movie_anime/One more time,One more chance/One more time,One more chance ().mkv
+```
+
+
 ## TODO
 
 - [x] symlink和link完美替换

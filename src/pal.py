@@ -3,8 +3,6 @@ import argparse
 import logging
 import re
 import json
-import subprocess
-import shlex
 
 from walklevel import walklevel
 
@@ -48,9 +46,10 @@ class PaL:
         parser.add_argument('--movie-folder',
                             default="Movie",
                             help='specify the name of Movie directory, default Movie.')
-        parser.add_argument('--skip-dir',
+        parser.add_argument('--ignore-rule',
                             default="skip.txt",
-                            help='file contain excule dirname, one dirname per line.')
+                            help='one rule per line, string ignore a directory or file, \
+                                `!` cancel ignore(place before direcotry ignore rule)')
         parser.add_argument('--keep-sub',
                             action='store_true',
                             help='keep files with these extention(\'srt,ass\').')
@@ -63,27 +62,18 @@ class PaL:
         parser.add_argument('--loglevel',
                             default='INFO',
                             help='--log=DEBUG, INFO, WARNING, ERROR, CRITICAL')
-        parser.add_argument('--cache',
+        parser.add_argument('--change-dst',
                             action='store_true',
-                            default=True,
-                            help='cache parsed metadata to json file in media_src/cache.json')
-        parser.add_argument('--save-link',
-                            action='store_true',
-                            default=True,
-                            help='logging link mapping in link_dst/links.log')
+                            help='set true when link src to new dst, affect cache')
         parser.add_argument('--failed-json',
                             default='failed.json',
                             help='specify the file path to save failed result, default "failed.json"')
-        # given the IMDb id, no need to parse from filename. working with other frontend tools
-        parser.add_argument('--imdbid',
-                            default='',
-                            help='specify the IMDb id, -s single mode only')
-        parser.add_argument('--tmdbid',
-                            default='',
-                            help='specify the TMDb id, -s single mode only')
-        parser.add_argument('--after-copy-script',
-                            default='',
-                            help='call this script with destination folder path after link/move')
+        # parser.add_argument('--imdbid',
+        #                     default='',
+        #                     help='specify the IMDb id')
+        # parser.add_argument('--tmdbid',
+        #                     default='',
+        #                     help='specify the TMDb id')
 
         self.ARGS = parser.parse_args(argv)
         self.ARGS.media_src = os.path.expanduser(self.ARGS.media_src)
@@ -105,16 +95,6 @@ class PaL:
         
         # check type
         self.ARGS.type = 'episode' if self.ARGS.type == 0 else 'movie'
-        
-        # skip
-        if self.ARGS.skip_dir:
-            skip_file_path = os.path.join(self.ARGS.media_src, self.ARGS.skip_dir)
-            if not os.path.exists(skip_file_path):
-                with open(skip_file_path, 'w', encoding='utf-8') as f:
-                    f.write('/Samples/\n')
-                    f.write('/SPs/\n')
-            with open(skip_file_path, 'r', encoding='utf-8') as f:
-                self.skip_dirnames = f.read().splitlines()
     
     def is_videofile(self, filename):
         ext = os.path.splitext(filename)[1]
@@ -132,11 +112,62 @@ class PaL:
                 if os.path.getsize(os.path.join(root, file)) < self.min_video_size:
                     continue
                 file_paths.append(os.path.join(root, file))
+        
+        # delete the extra entry in database
+        delete_path = []
+        for file_path, meta in self.cache.items():
+            if file_path not in file_paths:
+                # delete link file
+                if 'link_relpath' in meta:
+                    link_path_old = os.path.join(self.ARGS.link_dst, meta['link_relpath'])
+                    if os.path.exists(link_path_old) or \
+                       os.path.islink(link_path_old): # link broken
+                        logging.info(f"Remove: {os.path.relpath(link_path_old, self.ARGS.link_dst)}")
+                        self.remove_dir(link_path_old)
+                delete_path.append(file_path)
+        for file_path in delete_path:
+            del self.cache[file_path]
+        
         return file_paths
-    
-    def run_cmd(self, cmd):
-        output = subprocess.run(shlex.split(cmd), capture_output=True).stdout.decode('utf-8')
-        return output
+
+    def add_ignore_rule(self, rule):
+        ignorefile_path = os.path.join(self.ARGS.media_src, self.ARGS.ignore_rule)
+        with open(ignorefile_path, 'a', encoding='utf-8') as f:
+            f.write(rule+'\n')
+            
+    def ignore_files(self, file_paths):
+        from ignore_matcher import IgnoreMatcher
+        
+        # create default ignore file
+        ignorefile_path = os.path.join(self.ARGS.media_src, self.ARGS.ignore_rule)
+        if not os.path.exists(ignorefile_path):
+            with open(ignorefile_path, 'w', encoding='utf-8') as f:
+                f.write('/Sample\n')
+                f.write('/SP\n')     # SPs, SP DISK
+                f.write('Extras/\n')
+        ignorer = IgnoreMatcher(ignorefile_path)
+        
+        # filter files
+        filter_files = []
+        for file_path in file_paths:
+            relpath = os.path.relpath(file_path, self.ARGS.media_src)
+            if ignorer.is_ignored(relpath):
+                logging.debug(f"Ignore: {relpath}")
+                # check database
+                if file_path in self.cache:
+                    logging.info(f"cache ignore: {relpath}")
+                    # if already linked, remove
+                    if 'link_relpath' in self.cache[file_path]:
+                        link_path_old = os.path.join(self.ARGS.link_dst, self.cache[file_path]['link_relpath'])
+                        if os.path.exists(link_path_old):
+                            logging.info(f"Remove: {os.path.relpath(link_path_old, self.ARGS.link_dst)}")
+                            self.remove_dir(link_path_old)
+                    # rm cache entry
+                    del self.cache[file_path]
+                continue
+            filter_files.append(file_path)
+        
+        return filter_files
 
     def link(self, src, dst):
         if self.ARGS.dryrun:
@@ -148,6 +179,39 @@ class PaL:
         else:
             os.link(src, dst)
     
+    def remove_dir(self, file_path):
+        os.remove(file_path)
+        # remove empty dir
+        dirpath = os.path.dirname(file_path)
+        for file in os.listdir(dirpath):
+            ext = os.path.splitext(file)[1]
+            if ext not in ['.nfo', '.jpg', '.png']:
+                # not empty, can't delete dir
+                return
+        for file in os.listdir(dirpath):
+            os.remove(os.path.join(dirpath, file))
+        os.rmdir(dirpath)
+        
+    def read_database(self):
+        cache = {}
+        cache_path = os.path.join(self.ARGS.media_src, 'cache.json')
+        if os.path.exists(cache_path):
+            with open(cache_path, 'r', encoding='utf-8') as f:
+                cache = json.load(f)
+        
+        self.cache = cache
+        return cache
+    
+    def save_database(self):
+        cache_path = os.path.join(self.ARGS.media_src, 'cache.json')
+        with open(cache_path, 'w', encoding='utf-8') as f:
+            json.dump(self.cache, f, ensure_ascii=False, indent=2, default=str)
+    
+    def clear_miss_files(self):
+        self.miss_title_files = []
+        self.miss_ep_files = []
+        self.miss_type_files = []
+        
     def parse_filename_guessit(self, filename):
         from guessit import guessit
         
@@ -157,7 +221,13 @@ class PaL:
         #     return None
         # meta = json.loads(m.group(0))
         # return meta
-        return guessit(filename)
+        meta = guessit(filename)
+        # del object key
+        if 'country' in meta:
+            del meta['country']
+        if 'language' in meta:
+            del meta['language']
+        return dict(meta)
     
     # def parse_filename_gpt(self, filename):
     #     from Spark.Spark_parser import get_metadata
@@ -166,12 +236,15 @@ class PaL:
     def get_meta(self, file_path):
         filename = os.path.basename(file_path)
         meta = self.parse_filename_guessit(filename)
-        if meta is None:
-            return None, "failed to parse"
         
+        # clear failed flag
+        meta['failed'] = 0
+        
+        code = 0
         # check meta
         if 'season' not in meta:
             meta['season'] = 1
+            code = 1
         if 'screen_size' not in meta:
             meta['screen_size'] = ''
         if 'year' not in meta:
@@ -179,109 +252,138 @@ class PaL:
         
         # failed to parse, save to failed list
         if 'title' not in meta:
-            self.miss_title_files.append({file_path:meta})
-            return None, "miss title"
+            # fix title
+            fixed = False
+            if re.match(r'^(\[[^\]]+\])+(\(.*\))?\..*$', filename): # [xxx][title][xxx].mkv
+                parts = re.split(r'\[|\]', filename)
+                filename = max(parts, key=len)
+                filename = filename.strip().replace('_', ' ')
+                meta['title'] = filename
+                fixed = True
+                # meta_new = self.parse_filename_guessit(filename_sub)
+                # if 'title' in meta_new:
+                #     meta['title'] = meta_new['title']
+            if not fixed:
+                self.miss_title_files.append({file_path:meta})
+                meta['code'] = 2
+                return meta, 2, "miss title"
         
         # if meta type is not same as ARGS.type
         if meta['type'] != self.ARGS.type:
             self.miss_type_files.append({file_path:meta})
-            return None, "miss type"
+            meta['code'] = 3
+            return meta, 3, "miss type"
         
         if self.ARGS.type == 'episode':
             if 'episode' not in meta:
                 meta['episode'] = []
             if type(meta['episode'])==list:
                 self.miss_ep_files.append({file_path:meta})
-                return None, "miss episode"
+                meta['code'] = 4
+                return meta, 4, "miss episode"
         
-        return meta, "ok"
+        # TODO: check valid
+        if meta['season']>10:
+            meta['code'] = 5
+            return meta, 5, "bad season"
+
+        return meta, code, "ok"
+
+    def make_link(self, file_path, meta):
+        # make up link path
+        filename = os.path.basename(file_path)
+        ext_name = os.path.splitext(filename)[1]
+        m = re.search(r'\d{3,4}', meta['screen_size'])
+        resolution_str = f".{m.group()}p" if m else ''
+        if resolution_str not in ['.720p', '.1080p', '.2160p']:
+            resolution_str = ''
+        if meta['type'] == 'episode':
+            # /link/TV/Title/Season 1/Title-S01E01.2160p.mkv
+            link_relpath = os.path.join(self.ARGS.tv_folder, meta['title'], f"Season {meta['season']}", f"{meta['title']}-S{meta['season']:02d}E{meta['episode']:02d}{resolution_str}{ext_name}")
+        elif meta['type'] == 'movie':
+            # /link/Movie/Title (year)/Title (year).2160p.mkv
+            year_str = f" ({meta['year']})" if meta['year'] else ''
+            link_relpath = os.path.join(self.ARGS.movie_folder, f"{meta['title']}{year_str}", f"{meta['title']}{year_str}{resolution_str}{ext_name}")
+
+        # already linked and not change dst
+        if 'link_relpath' in meta and not self.ARGS.change_dst:
+            # same link path, skip
+            if meta['link_relpath'] == link_relpath:
+                return
+            # different, remove old and relink new
+            link_path_old = os.path.join(self.ARGS.link_dst, meta['link_relpath'])
+            if os.path.exists(link_path_old):
+                logging.info(f"Remove: {os.path.relpath(link_path_old, self.ARGS.link_dst)}")
+                self.remove_dir(link_path_old)
         
+        # update meta
+        meta['link_relpath'] = link_relpath
+        
+        link_path = os.path.join(self.ARGS.link_dst, link_relpath)
+        # link exists, skip
+        if os.path.exists(link_path):
+            return
+        
+        # ensure the link dir exists
+        os.makedirs(os.path.dirname(link_path), exist_ok=True)
+        logging.info(f"{os.path.relpath(file_path, self.ARGS.media_src):50} -> {os.path.relpath(link_path, self.ARGS.link_dst)}")
+        
+        # symlink or hardlink to dest path
+        self.link(file_path, link_path)
+    
+    def process_movie(self, file_paths, cache):
+        for file_path in file_paths:
+            # check cache
+            if file_path in cache:
+                logging.debug(f" Hit: {os.path.relpath(file_path, self.ARGS.media_src)}")
+                continue
+            
+            # new file, parse filename
+            meta, code, msg = self.get_meta(file_path)
+            if msg != "ok": # parse failed
+                logging.warning(f" {msg:10}: {os.path.relpath(file_path, self.ARGS.media_src)}")
+                meta['failed'] = 1  # parse failed
+            cache[file_path] = meta
+
     def main(self, argv=None):
         self.load_args(argv)
+        
+        # get cache(can be empty)
+        cache = self.read_database()
         
         # traverse the src dir, get all filenames
         file_paths = self.get_files(self.ARGS.media_src)
         
-        # check cache
-        cache_path = os.path.join(self.ARGS.media_src, 'cache.json')
-        if self.ARGS.cache and os.path.exists(cache_path):
-            with open(cache_path, 'r', encoding='utf-8') as f:
-                cache = json.load(f)
+        # check ignore rule
+        file_paths = self.ignore_files(file_paths)
+        
+        # miss list record failed files
+        self.clear_miss_files()
+        
+        # after process, cache is dict of {file_path:meta}
+        if self.ARGS.type == 'movie':
+            self.process_movie(file_paths, cache)
         else:
-            cache = {}
-        
-        # logging link mapping
-        link_file = open(os.path.join(self.ARGS.link_dst, 'links.log'), "a")
-        
-        # save miss parse files
-        self.miss_title_files = []
-        self.miss_ep_files = []
-        self.miss_type_files = []
-        
-        # for each file, parse the filename, get the metadata, and link to dest path
-        for file_path in file_paths:
-            # skip dirname
-            for dirname in self.skip_dirnames:
-                if dirname in file_path:
-                    logging.info(f"Skip: {os.path.relpath(file_path, self.ARGS.media_src)}")
-                    continue
-                
-            # check cache
-            if file_path in cache:
-                logging.info(f" Hit: {os.path.relpath(file_path, self.ARGS.media_src)}")
-                meta = cache[file_path]
-            else:
-                meta, msg = self.get_meta(file_path)
-                if meta is None:
-                    # parse failed
-                    logging.warning(f" {msg:10}: {os.path.relpath(file_path, self.ARGS.media_src)}")
-                    continue
-            
-            # make up link path
-            filename = os.path.basename(file_path)
-            ext_name = os.path.splitext(filename)[1]
-            m = re.search(r'\d{3,4}', meta['screen_size'])
-            resolution_str = f".{m.group()}p" if m else ''
-            # resolution_str = '' if resolution_str == '.1080p' else resolution_str  # 1080p is default, no need to add to link path
-            if meta['type'] == 'episode':
-                # /link/TV/Title/Season 1/Title-S01E01.2160p.mkv
-                link_path = os.path.join(self.ARGS.link_dst, self.ARGS.tv_folder, meta['title'], f"Season {meta['season']}", f"{meta['title']}-S{meta['season']:02d}E{meta['episode']:02d}{resolution_str}{ext_name}")
-            elif meta['type'] == 'movie':
-                # /link/Movie/Title (year)/Title (year).2160p.mkv
-                year_str = f" ({meta['year']})" if meta['year'] else ''
-                link_path = os.path.join(self.ARGS.link_dst, self.ARGS.movie_folder, meta['title'], f"{meta['title']} ({meta['year']}){resolution_str}{ext_name}")
-            
-            # link exists, skip
-            if os.path.exists(link_path):
-                continue
-            
-            # ensure the link dir exists
-            os.makedirs(os.path.dirname(link_path), exist_ok=True)
-            logging.info(f"{os.path.relpath(file_path, self.ARGS.media_src):50} -> {os.path.relpath(link_path, self.ARGS.link_dst)}")
-            
-            # symlink or hardlink to dest path
-            self.link(file_path, link_path)
-            
-            # cache
-            cache[file_path] = meta
-            
-            # save link mapping
-            if self.ARGS.save_link:
-                link_file.write(f"{os.path.relpath(file_path, self.ARGS.media_src):50} -> {os.path.relpath(link_path, self.ARGS.link_dst)}\n")
+            # self.process_tv(file_paths, cache)
+            self.process_movie(file_paths, cache)
         
         # handle failed files
         with open(self.ARGS.failed_json, 'w', encoding='utf-8') as f:
             json.dump({'miss_title_files':self.miss_title_files,
                        'miss_ep_files':self.miss_ep_files,
                        'miss_type_files':self.miss_type_files
-                       }, f, ensure_ascii=False, indent=2)
+                       }, f, ensure_ascii=False, indent=2, default=str)
         
-        link_file.close()
+        # according to new database, make link
+        for file_path, meta in cache.copy().items():  # copy: fix dictionary changed size during iteration
+            if 'failed' not in meta:
+                meta['failed'] = 0  # delete failed flag, when handing failed files
+            if meta['failed'] == 1: # failed meta, skip
+                continue
+            self.make_link(file_path, meta)
         
         # save cache
-        if self.ARGS.cache:
-            with open(cache_path, 'w', encoding='utf-8') as f:
-                json.dump(cache, f, ensure_ascii=False, indent=2)
+        self.save_database()
 
 if __name__ == '__main__':
     pal = PaL()
