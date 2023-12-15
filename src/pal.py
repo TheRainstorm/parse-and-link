@@ -111,6 +111,10 @@ class PaL:
                 # filter small video
                 if os.path.getsize(os.path.join(root, file)) < self.min_video_size:
                     continue
+                
+                # short name video
+                if len(file)<=8:
+                    continue
                 file_paths.append(os.path.join(root, file))
         
         # delete the extra entry in database
@@ -242,9 +246,6 @@ class PaL:
         
         code = 0
         # check meta
-        if 'season' not in meta:
-            meta['season'] = 1
-            code = 1
         if 'screen_size' not in meta:
             meta['screen_size'] = ''
         if 'year' not in meta:
@@ -270,22 +271,59 @@ class PaL:
         
         # if meta type is not same as ARGS.type
         if meta['type'] != self.ARGS.type:
-            self.miss_type_files.append({file_path:meta})
-            meta['code'] = 3
-            return meta, 3, "miss type"
+            if re.search(r'\b\d{1,2}\b', filename) and \
+                not re.search(r'\b\d{4}\b', filename):
+                meta['type'] = 'episode'
+            else:
+                self.miss_type_files.append({file_path:meta})
+                meta['code'] = 3
+                return meta, 3, "miss type"
         
         if self.ARGS.type == 'episode':
             if 'episode' not in meta:
-                meta['episode'] = []
+                # [01]
+                m = re.search(r'\[(\d{2})\]', filename)
+                if m:
+                    ep = int(m.group(1))
+                    filename = filename.replace(m.group(0), '')
+                    # reparse, may fix season
+                    meta_new = self.parse_filename_guessit(filename)
+                    meta['episode'] = ep
+                    if 'season' in meta_new:
+                        meta['season'] = meta_new['season']
+                # - 9
+                elif re.search(r'\b\d{1,2}\b', filename):
+                    m = re.search(r'\b(\d{1,2})\b', filename)
+                    meta['episode'] = int(m.group(1))
+                else:
+                    meta['episode'] = []
             if type(meta['episode'])==list:
                 self.miss_ep_files.append({file_path:meta})
                 meta['code'] = 4
                 return meta, 4, "miss episode"
-        
-        # TODO: check valid
-        if meta['season']>10:
-            meta['code'] = 5
-            return meta, 5, "bad season"
+            
+            # season fix
+            if 'season' in meta and type(meta['season'])==list:
+                meta['code'] = 5
+                return meta, 5, "bad season"
+            
+            # season in title
+            if 'season' not in meta:
+                if re.search(r'(2nd Season)|(II)', meta['title'], re.I):
+                    meta['season'] = 2
+                    meta['title'] = meta['title'].replace(m.group(0), '').strip()
+                    
+                elif re.search(r'(3rd Season)|(III)', meta['title'], re.I):
+                    meta['season'] = 3
+                    meta['title'] = meta['title'].replace(m.group(0), '').strip()
+                    
+                elif re.search(r'[\s_-]\d{1}$', meta['title']):
+                    meta['season'] = int(meta['title'][-1])
+                    meta['title'] = meta['title'][:-1].strip()
+                
+                else:
+                    meta['season'] = 1
+                    code = 1
 
         return meta, code, "ok"
 
