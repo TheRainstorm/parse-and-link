@@ -115,13 +115,13 @@ class PaL:
                 # short name video
                 if len(file)<=8:
                     continue
-                file_paths.append(os.path.join(root, file))
+                file_path = os.path.join(root, file)
+                file_paths.append(os.path.relpath(file_path, self.ARGS.media_src))
         
-        # delete the extra entry in database
         delete_path = []
         for file_path, meta in self.cache.items():
-            if file_path not in file_paths:
-                # delete link file
+            if file_path not in file_paths: # database have excess file
+                # delete link
                 if 'link_relpath' in meta:
                     link_path_old = os.path.join(self.ARGS.link_dst, meta['link_relpath'])
                     if os.path.exists(link_path_old) or \
@@ -129,6 +129,7 @@ class PaL:
                         logging.info(f"Remove: {os.path.relpath(link_path_old, self.ARGS.link_dst)}")
                         self.remove_dir(link_path_old)
                 delete_path.append(file_path)
+        # delete the excess file in database
         for file_path in delete_path:
             del self.cache[file_path]
         
@@ -157,7 +158,7 @@ class PaL:
             relpath = os.path.relpath(file_path, self.ARGS.media_src)
             if ignorer.is_ignored(relpath):
                 logging.debug(f"Ignore: {relpath}")
-                # check database
+                # check database if already linked
                 if file_path in self.cache:
                     logging.info(f"cache ignore: {relpath}")
                     # if already linked, remove
@@ -183,18 +184,43 @@ class PaL:
         else:
             os.link(src, dst)
     
-    def remove_dir(self, file_path):
+    def delete_related_file(self, file_path, type):
+        def check_empty(dirpath):
+            # check dir don't contain video file
+            for file in os.listdir(dirpath):
+                file_path = os.path.join(dirpath, file)
+                if os.path.isdir(file_path):
+                    if not check_empty(file_path):
+                        return False
+                else:
+                    ext = os.path.splitext(file)[1]
+                    if ext not in ['.nfo', '.jpg', '.png']:
+                        return False
+            return True
+
+        def delete_dir(dirpath):
+            # delete dir recursively
+            for file in os.listdir(dirpath):
+                file_path = os.path.join(dirpath, file)
+                if os.path.isdir(file_path):
+                    delete_dir(file_path)
+                else:
+                    os.remove(file_path)
+        
+        if not os.path.exists(file_path):
+            return
+        
+        logging.info(f"Remove: {file_path}")
         os.remove(file_path)
-        # remove empty dir
-        dirpath = os.path.dirname(file_path)
-        for file in os.listdir(dirpath):
-            ext = os.path.splitext(file)[1]
-            if ext not in ['.nfo', '.jpg', '.png']:
-                # not empty, can't delete dir
-                return
-        for file in os.listdir(dirpath):
-            os.remove(os.path.join(dirpath, file))
-        os.rmdir(dirpath)
+        
+        if type == 'movie':
+            dirpath = os.path.join(file_path, "..")
+        else:
+            dirpath = os.path.join(file_path, "../../")
+        
+        if check_empty(dirpath):
+            logging.info(f"Remove dir: {os.path.relpath(dirpath, self.ARGS.link_dst)}")
+            delete_dir(dirpath)
         
     def read_database(self):
         cache = {}
@@ -204,7 +230,6 @@ class PaL:
                 cache = json.load(f)
         
         self.cache = cache
-        return cache
     
     def save_database(self):
         cache_path = os.path.join(self.ARGS.media_src, 'cache.json')
@@ -226,11 +251,6 @@ class PaL:
         # meta = json.loads(m.group(0))
         # return meta
         meta = guessit(filename)
-        # del object key
-        if 'country' in meta:
-            del meta['country']
-        if 'language' in meta:
-            del meta['language']
         return dict(meta)
     
     # def parse_filename_gpt(self, filename):
@@ -251,13 +271,13 @@ class PaL:
         if 'year' not in meta:
             meta['year'] = ''
         
-        # failed to parse, save to failed list
+        # title failed
         if 'title' not in meta:
             # fix title
             fixed = False
             if re.match(r'^(\[[^\]]+\])+(\(.*\))?\..*$', filename): # [xxx][title][xxx].mkv
                 parts = re.split(r'\[|\]', filename)
-                filename = max(parts, key=len)
+                filename = max(parts, key=len) # get longest part
                 filename = filename.strip().replace('_', ' ')
                 meta['title'] = filename
                 fixed = True
@@ -271,6 +291,7 @@ class PaL:
         
         # if meta type is not same as ARGS.type
         if meta['type'] != self.ARGS.type:
+            # have ep and no year
             if re.search(r'\b\d{1,2}\b', filename) and \
                 not re.search(r'\b\d{4}\b', filename):
                 meta['type'] = 'episode'
@@ -350,9 +371,7 @@ class PaL:
                 return
             # different, remove old and relink new
             link_path_old = os.path.join(self.ARGS.link_dst, meta['link_relpath'])
-            if os.path.exists(link_path_old):
-                logging.info(f"Remove: {os.path.relpath(link_path_old, self.ARGS.link_dst)}")
-                self.remove_dir(link_path_old)
+            self.delete_related_file(link_path_old, meta['type'])
         
         # update meta
         meta['link_relpath'] = link_relpath
@@ -364,35 +383,46 @@ class PaL:
         
         # ensure the link dir exists
         os.makedirs(os.path.dirname(link_path), exist_ok=True)
-        logging.info(f"{os.path.relpath(file_path, self.ARGS.media_src):50} -> {os.path.relpath(link_path, self.ARGS.link_dst)}")
+        logging.info(f"{file_path:50} -> {link_relpath}")
         
         # symlink or hardlink to dest path
         self.link(file_path, link_path)
     
-    def process_movie(self, file_paths, cache):
+    def process_movie(self, file_paths):
         for file_path in file_paths:
             # check cache
-            if file_path in cache:
-                logging.debug(f" Hit: {os.path.relpath(file_path, self.ARGS.media_src)}")
+            if file_path in self.cache:
+                logging.debug(f" Hit: {file_path}")
                 continue
             
             # new file, parse filename
             meta, code, msg = self.get_meta(file_path)
             if msg != "ok": # parse failed
-                logging.warning(f" {msg:10}: {os.path.relpath(file_path, self.ARGS.media_src)}")
+                logging.warning(f" {msg:10}: {file_path}")
                 meta['failed'] = 1  # parse failed
-            cache[file_path] = meta
+            self.cache[file_path] = meta
 
+    def abspath2relpath(self):
+        db = {}
+        for file_path, meta in self.cache.items():
+            if file_path.startswith('/'):
+                relpath = os.path.relpath(file_path, self.ARGS.media_src)
+                db[relpath] = meta
+            else:
+                db[file_path] = meta
+        self.cache = db
+    
     def main(self, argv=None):
         self.load_args(argv)
         
-        # get cache(can be empty)
-        cache = self.read_database()
+        # read database(can be empty), self.cache
+        self.read_database()
+        # self.abspath2relpath()
         
         # traverse the src dir, get all filenames
         file_paths = self.get_files(self.ARGS.media_src)
         
-        # check ignore rule
+        # filter files according ignore rules
         file_paths = self.ignore_files(file_paths)
         
         # miss list record failed files
@@ -400,10 +430,10 @@ class PaL:
         
         # after process, cache is dict of {file_path:meta}
         if self.ARGS.type == 'movie':
-            self.process_movie(file_paths, cache)
+            self.process_movie(file_paths)
         else:
-            # self.process_tv(file_paths, cache)
-            self.process_movie(file_paths, cache)
+            # self.process_tv(file_paths)
+            self.process_movie(file_paths)
         
         # handle failed files
         with open(self.ARGS.failed_json, 'w', encoding='utf-8') as f:
@@ -413,9 +443,9 @@ class PaL:
                        }, f, ensure_ascii=False, indent=2, default=str)
         
         # according to new database, make link
-        for file_path, meta in cache.copy().items():  # copy: fix dictionary changed size during iteration
+        for file_path, meta in self.cache.items():
             if 'failed' not in meta:
-                meta['failed'] = 0  # delete failed flag, when handing failed files
+                meta['failed'] = 0  # delete failed flag when handing failed files
             if meta['failed'] == 1: # failed meta, skip
                 continue
             self.make_link(file_path, meta)
