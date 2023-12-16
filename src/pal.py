@@ -15,23 +15,23 @@ class PaL:
     
     def load_args(self, argv=None):
         parser = argparse.ArgumentParser(
-            description='ProjectName: parse Movie and TV file metadata, then link to dest path.'
+            description='PAL: parse metadata from filename, and link to dest path'
         )
         parser.add_argument('-s',
                             '--media-src',
                             required=True,
-                            help='The directory contains TVs and Movies to be copied.')
+                            help='The src path contains TVs or Movies')
         parser.add_argument('-d',
                             '--link-dst',
                             required=True,
-                            help='the dest path to create Link.')
+                            help='the dest path link to')
         # parser.add_argument('--tmdb-api-key',
         #                     # required=True,
         #                     help='Search API for the tmdb id, and gen dirname as Name (year)\{tmdbid=xxx\}')
         parser.add_argument('-S',
                             '--symbol-link',
                             action='store_true',
-                            help='symbol link')
+                            help='use symbolic link rather than hard link')
         # parser.add_argument('--only-link',
         #                     action='store_true',
         #                     help='don\'t save .nfo file in the media dir')
@@ -39,35 +39,35 @@ class PaL:
                             '--type',
                             type=int,
                             required=True,
-                            help='0: tv, 1: movie. specify the src directory is TV or Movie, default TV.')
+                            help='Specify the src media type, 0: tv, 1: movie, default TV')
         parser.add_argument('--tv-folder',
                             default="TV",
-                            help='specify the name of TV directory, default TV.')
+                            help='Specify the linking category-dir of TV, default `TV`')
         parser.add_argument('--movie-folder',
                             default="Movie",
-                            help='specify the name of Movie directory, default Movie.')
+                            help='Specify the linking category-dir of Movie, default `Movie`')
         parser.add_argument('--ignore-rule',
                             default="skip.txt",
-                            help='one rule per line, string ignore a directory or file, \
-                                `!` cancel ignore(place before direcotry ignore rule)')
+                            help='Specific ignored files and directories. One rule per line. `!` cancel ignoring')
         parser.add_argument('--keep-sub',
                             action='store_true',
-                            help='keep files with these extention(\'srt,ass\').')
+                            help='Keep subtitles files(\'srt,ass\')')
+        parser.add_argument('-F',
+                            '--force-relink-check',
+                            action='store_true',
+                            help='Check wheather link exists, relink if lost. Useful when changing link dst')
         parser.add_argument('--dryrun',
                             action='store_true',
-                            help='print message instead of real copy.')
+                            help="Don't make really links")
         parser.add_argument('--make-log',
                             action='store_true',
-                            help='Make a log file.')
+                            help='Print log to file "pal.log"')
         parser.add_argument('--loglevel',
                             default='INFO',
                             help='--log=DEBUG, INFO, WARNING, ERROR, CRITICAL')
-        parser.add_argument('--change-dst',
-                            action='store_true',
-                            help='set true when link src to new dst, affect cache')
         parser.add_argument('--failed-json',
                             default='failed.json',
-                            help='specify the file path to save failed result, default "failed.json"')
+                            help='Dump failed files to json file, default `failed.json`')
         # parser.add_argument('--imdbid',
         #                     default='',
         #                     help='specify the IMDb id')
@@ -344,7 +344,7 @@ class PaL:
             link_relpath = os.path.join(self.ARGS.movie_folder, f"{meta['title']}{year_str}", f"{meta['title']}{year_str}{resolution_str}{ext_name}")
 
         # already linked and not change dst
-        if 'link_relpath' in meta and not self.ARGS.change_dst:
+        if 'link_relpath' in meta and not self.ARGS.force_relink_check:
             # same link path, skip
             if meta['link_relpath'] == link_relpath:
                 return

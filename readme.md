@@ -11,25 +11,25 @@
 
 ## 背景
 
-对于PT爱好者，通常已经收藏了丰富的电影、电视剧和动漫等资源，然而如何美观地展示它们是一个不太容易的事情。不过，市面上已经有一些方案可以让普通用户搭建出属于自己的视频网站或者说——个人媒体库。用户可以通过网页或者App的形式访问自己的媒体库。媒体库会展示海报墙、简介、标签、演员等丰富的信息，用户也能直接播放视频。通常来说收集的数据越多，展示的海报墙就越漂亮，因此这对PT爱好者简直有无穷的吸引力。
+对于PT爱好者，通常已经收藏了丰富的电影、电视剧和动漫等资源，然而如何美观地展示它们是一个不太容易的事情。不过，市面上已经有一些方案可以让普通用户搭建出属于自己的视频流媒体网站或者说——个人媒体库。用户可以通过网页或者App的形式访问自己的媒体库。媒体库会展示海报墙、简介、标签、演员等丰富的信息，用户也能直接播放视频。通常来说收集的影视资源越多，展示的海报墙就越漂亮，因此这对PT爱好者简直有无穷的吸引力。
 
-目前的方案可以分为商业成熟的方案和个人DIY的方案。商业的方案比如苹果的Infuse软件，用户仅需要指定媒体的存储位置（支持smb），软件便会自动搜索识别整理媒体资源并在多端同步（比如Apple TV）。另一个比较成功的商业产品形态便是作为NAS产品系统软件的一部分，现有各种nas产品通常都会包含一个集成的影音中心。并且该软件的易用性通常可以作为NAS产品亮点的一部分。
+目前的方案可以分为商业成熟的方案和个人DIY的方案。商业的方案比如苹果的Infuse软件，用户仅需要指定媒体的存储位置（支持SMB），软件便会自动搜索识别整理媒体资源并在多端同步（比如Apple TV）。另一个比较成功的商业产品形态便是作为NAS产品系统软件的一部分，现有各种NAS产品通常都会包含一个集成的影音中心。并且该软件的易用性通常可以作为NAS产品亮点的一部分。
 
-个人DIY的方案最有名的便是开源软件jellyfin，社区非常活跃。值得一提的是jellyfin是基于Emby软件发展而来的，而Emby是一个商业软件，需要付费订阅。二者各有优缺，看个人喜好选择。本文接下来探讨的主要是jellyfin。
+个人DIY领域有名的方案有Plex, Emby和Jellyfin。Plex历史最长(2008)，兼容性比较好，但是订阅费比较贵。Emby用户界面比较友好，可以免费使用，但是高级功能需要订阅。Jellyfin(2018)则是Emby的一个开源分支，功能完全免费，并且有着不断增长的开源社区的支持。三款软件各有优劣，本文接下来探讨的主要是Jellyfin。
 
-个人媒体库软件的挑战之一便是从五花八门的视频文件名称中识别出正确的电影电视名称，然后从媒体网站下载对应的封面、简介等元数据。该过程通常也被称为刮削。
-虽然jellyfin仍然在活跃开发中，但是目前从视频文件名识别信息这一点做的并不好。而一旦识别不正确，媒体库的海报墙便会显示缺失的图片，动漫番剧更是这里缺一集那里缺一集。许多同类软件也都面临相同问题。
+个人媒体库软件(media server software)的挑战之一便是从五花八门的视频文件名称中识别出正确的电影电视名称，然后从媒体网站下载对应的封面、简介等元数据。该过程通常也被称为刮削。
+虽然jellyfin仍然在活跃开发中，但是目前从视频文件名识别信息这一点做的并不好。而一旦识别不正确，媒体库的海报墙便会显示缺失的图片，动漫番剧更是出现集数显示不全的问题。许多同类软件也都面临相同问题。
 
-对于用户来说，一个解决方案便是使用单独的工具进行刮削。tmm便是一个使用广泛的工具，支持图形化的界面，在无法自动识别时可以手动进行设置。使用该工具已经能够解决许多问题了，最差情况下便是需要花费很多时间在手动整理未识别的视频上（通常是电视剧集数信息）
+对于用户来说，一个解决方案便是使用单独的工具进行刮削。tmm便是一个使用广泛的工具，支持图形化的界面，在无法自动识别时可以手动进行设置。使用该工具已经能够解决许多问题了，最差情况下便是需要花费很多时间手动整理未识别的视频（通常是电视剧集数信息）
 
-然而对于PT爱好者来说，还有一个挑战是下载的资源通常还希望继续做种，因此通常不希望对资源进行重命名或者移动。因此最好是下载目录和识别目录进行分离。围绕该思路有一些工具，其中值得一提的是nas-tool，该软件可以识别视频信息，并将其链接到另一个目录，同时进行重命名。重命名后的目录、文件名都是遵循一定格式的，因此非常整洁。使用链接目录作为jellyfin的媒体路径时便基本能达到100%的准确度了，已经属于好用的程度。
+然而对于PT爱好者来说，还有一个挑战是下载的资源通常还希望继续做种，因此通常不希望对资源进行重命名或者移动。因此最好是下载目录和识别目录进行分离。围绕该思路有一些工具，其中值得一提的是nas-tool，该软件可以识别视频信息，并将其链接到另一个目录，同时进行重命名。重命名后的目录、文件名都是遵循一定格式的，因此非常整洁。使用链接目录作为jellyfin的媒体路径时便基本能达到100%的准确度了，可以达到不错的效果。
 
-然而nas-tool自身的识别正确率却依然不高，刮削链接功能只是该项目功能之一，其还包含自动订阅下载，刷流等其它繁杂功能。对于我来说，识别准确的重要性是最重要的，对于如今chatgpt都被宣传为要超越人类了，而如此直觉上简单的功能却这么多工具都做不好对我来说还是挺意外的。而且上述工具均无法让用户简单的修改其识别逻辑。
+然而nas-tool自身的识别正确率却依然不高，很多时候还是需要在网页中选择文件手动识别，步骤很麻烦。可能是因为刮削链接功能只是该项目功能之一，其还包含自动订阅下载，刷流等其它繁杂功能。而对于我来说，识别准确的重要性是最重要的，并且需要让让用户通过简单的方式修正识别的结果。
 
 因此我想要围绕刮削+链接，自己实现一个工具，目标是实现接近完美的刮削效果。该工具的特点为：
-- 软连接模式：适用于想保留原始做种文件的用户，这是因为一些BD资源，除了视频通常也包含一些音频和图片，而这些资源是没办法被jellyfin等软件展示的，因此通常不会被刮削
+- 软连接模式：适用于想保留原始做种文件的用户，刮削好的链接文件可以被安全地删除。这是因为一些BD资源，除了视频通常也包含一些音频和图片，而这些资源通常是没办法被jellyfin等软件展示的，因此一般不会被刮削。
   - 优点：
-    - 支持**多块做种盘**文件链接到一个路径（避免需要在jellyfin里反复
+    - 支持**多块做种盘**文件链接到一个路径（避免需要在jellyfin里反复添加路径）
     - 保留BDrip完整数据，适用于收藏党
     - 可以把链接完全作为额外数据进行复制（硬链接rsync时更麻烦些）
   - 缺点
@@ -42,8 +42,76 @@
 - 使用各种复杂算法，强化识别准确率（许多动漫仅是使用`xxx [01] xxx`这样的方式包含集数信息，现有的工具竟然都无法识别）
   - 使用AI算法，提取关键字
   - 最使用chatgpt API识别
+- 支持识别错误时，简单地进行手动修正。最好是提供一个文件供用户编辑（而不是在在网页中点来点去）
 
 ## 使用
+
+### 命令参数
+
+```
+usage: pal.py [-h] -s MEDIA_SRC -d LINK_DST [-S] -t TYPE [--tv-folder TV_FOLDER] [--movie-folder MOVIE_FOLDER] [--ignore-rule IGNORE_RULE] [--keep-sub] [-F] [--dryrun] [--make-log]
+              [--loglevel LOGLEVEL] [--failed-json FAILED_JSON]
+
+PAL: parse metadata from filename, and link to dest path
+
+options:
+  -h, --help            show this help message and exit
+  -s MEDIA_SRC, --media-src MEDIA_SRC
+                        The src path contains TVs or Movies
+  -d LINK_DST, --link-dst LINK_DST
+                        the dest path link to
+  -S, --symbol-link     use symbolic link rather than hard link
+  -t TYPE, --type TYPE  Specify the src media type, 0: tv, 1: movie, default TV
+  --tv-folder TV_FOLDER
+                        Specify the linking category-dir of TV, default `TV`
+  --movie-folder MOVIE_FOLDER
+                        Specify the linking category-dir of Movie, default `Movie`
+  --ignore-rule IGNORE_RULE
+                        Specific ignored files and directories. One rule per line. `!` cancel ignoring
+  --keep-sub            Keep subtitles files('srt,ass')
+  -F, --force-relink-check
+                        Check wheather link exists, relink if lost. Useful when changing link dst
+  --dryrun              Don't make really links
+  --make-log            Print log to file "pal.log"
+  --loglevel LOGLEVEL   --log=DEBUG, INFO, WARNING, ERROR, CRITICAL
+  --failed-json FAILED_JSON
+                        Dump failed files to json file, default `failed.json`
+```
+
+例子：
+```bash
+# 将TV目录下的所有视频文件链接到links目录的剧集目录下(默认为TV)，识别类型为TV(-t 0)，使用软链接(-S)
+python pal.py -s "/mnt/Disk2/BT/downloads/Video/TV" -d "/mnt/Disk2/BT/links/" -t 0 -S
+python pal.py -s "/mnt/Disk2/BT/downloads/Video/Movie" -d "/mnt/Disk2/BT/links/" -t 1 -S
+python pal.py -s "/mnt/Disk2/BT/downloads/Video/TV_anime" -d "/mnt/Disk2/BT/links/" --tv-folder "TV_anime" -t 0 -S
+python pal.py -s "/mnt/Disk2/BT/downloads/Video/Movie_anime" -d "/mnt/Disk2/BT/links/" --movie-folder "Movie_anime" -t 1 -S
+```
+最后生成如下目录结构
+```
+├── links
+│   ├── Movie
+│   ├── Movie_anime
+│   ├── TV
+│   └── TV_anime
+```
+
+### 软链接下使用jellyfin容器
+
+软连接的优点是可以跨磁盘链接，如果是在host上安装jellyfin，则软链接和硬链接没有区别。但是如果要想在docker容器中使用软链接读取host上的对应的文件，需要满足一些条件。
+
+假设有两块做种磁盘路径如下
+```
+/mnt/Disk2/BT/downloads
+/mnt/Disk1/BT/downloads
+```
+而软链接目录为`/mnt/Disk2/BT/links`
+
+那么在运行jellyfin容器时，至少需要把links目录和所有做种目录的**最长公共前缀**目录挂载到容器中。示例情况中`/mnt/Disk1/BT/downloads`和`/mnt/Disk2/BT/links`最长公共目录为`/mnt/`，因此需要把`/mnt/`目录作为挂载参数。如果没有Disk1，则只需要挂载``/mnt/Disk2/BT`目录即可。示例docker命令
+```
+docker run --name jellyfin \
+    -v /mnt/:/MediaLib \
+    jellyfin/jellyfin
+```
 
 ### 识别错误后处理
 
