@@ -46,8 +46,15 @@
 
 ## 使用
 
+### 安装
+
+```
+pip install -r requirements.txt
+```
+
 ### 命令参数
 
+`src/pal.py`文件为主程序，使用`-h`查看帮助信息
 ```
 usage: pal.py [-h] -s MEDIA_SRC -d LINK_DST [-S] -t TYPE [--tv-folder TV_FOLDER] [--movie-folder MOVIE_FOLDER] [--ignore-rule IGNORE_RULE] [--keep-sub] [-F] [--dryrun] [--make-log]
               [--loglevel LOGLEVEL] [--failed-json FAILED_JSON]
@@ -81,10 +88,10 @@ options:
 例子：
 ```bash
 # 将TV目录下的所有视频文件链接到links目录的剧集目录下(默认为TV)，识别类型为TV(-t 0)，使用软链接(-S)
-python pal.py -s "/mnt/Disk2/BT/downloads/Video/TV" -d "/mnt/Disk2/BT/links/" -t 0 -S
-python pal.py -s "/mnt/Disk2/BT/downloads/Video/Movie" -d "/mnt/Disk2/BT/links/" -t 1 -S
-python pal.py -s "/mnt/Disk2/BT/downloads/Video/TV_anime" -d "/mnt/Disk2/BT/links/" --tv-folder "TV_anime" -t 0 -S
-python pal.py -s "/mnt/Disk2/BT/downloads/Video/Movie_anime" -d "/mnt/Disk2/BT/links/" --movie-folder "Movie_anime" -t 1 -S
+python src/pal.py -s "/mnt/Disk2/BT/downloads/Video/TV" -d "/mnt/Disk2/BT/links/" -t 0 -S
+python src/pal.py -s "/mnt/Disk2/BT/downloads/Video/Movie" -d "/mnt/Disk2/BT/links/" -t 1 -S
+python src/pal.py -s "/mnt/Disk2/BT/downloads/Video/TV_anime" -d "/mnt/Disk2/BT/links/" --tv-folder "TV_anime" -t 0 -S
+python src/pal.py -s "/mnt/Disk2/BT/downloads/Video/Movie_anime" -d "/mnt/Disk2/BT/links/" --movie-folder "Movie_anime" -t 1 -S
 ```
 最后生成如下目录结构
 ```
@@ -187,6 +194,8 @@ Evangelion Shin Gekijouban 01-04/
 - [ ] 相似title合并，在剧集识别算法之前
 - [ ] 使用GPT对识别错误的文件重新处理
 - [ ] 复制原本存在的字幕文件
+- [ ] cache.json中使用相对路径。从而可以移动src目录
+- [ ] 联网检查识别结果
 
 ### 相似title合并
 
