@@ -144,7 +144,7 @@ class PaL:
                     if os.path.exists(link_path_old) or \
                        os.path.islink(link_path_old): # link broken
                         logging.info(f"Remove: {os.path.relpath(link_path_old, self.ARGS.link_dst)}")
-                        self.remove_dir(link_path_old)
+                        self.delete_related_file(link_path_old, meta['type'])
                 delete_path.append(file_path)
         # delete the excess file in database
         for file_path in delete_path:
@@ -165,18 +165,17 @@ class PaL:
         # filter files
         filter_files = []
         for file_path in file_paths:
-            relpath = os.path.relpath(file_path, self.ARGS.media_src)
-            if ignorer.is_ignored(relpath):
-                logging.debug(f"Ignore: {relpath}")
+            if ignorer.is_ignored(file_path):
+                logging.debug(f"Ignore: {file_path}")
                 # check database if already linked
                 if file_path in self.cache:
-                    logging.info(f"cache ignore: {relpath}")
+                    logging.info(f"cache ignore: {file_path}")
                     # if already linked, remove
                     if 'link_relpath' in self.cache[file_path]:
                         link_path_old = os.path.join(self.ARGS.link_dst, self.cache[file_path]['link_relpath'])
                         if os.path.exists(link_path_old):
                             logging.info(f"Remove: {os.path.relpath(link_path_old, self.ARGS.link_dst)}")
-                            self.remove_dir(link_path_old)
+                            self.delete_related_file(link_path_old, self.cache[file_path]['type'])
                     # rm cache entry
                     del self.cache[file_path]
                 continue
@@ -216,17 +215,18 @@ class PaL:
                     delete_dir(file_path)
                 else:
                     os.remove(file_path)
+            os.rmdir(dirpath)
         
         if not os.path.exists(file_path):
             return
         
-        logging.info(f"Remove: {file_path}")
         os.remove(file_path)
         
         if type == 'movie':
             dirpath = os.path.join(file_path, "..")
         else:
             dirpath = os.path.join(file_path, "../../")
+        dirpath = os.path.abspath(dirpath)
         
         if check_empty(dirpath):
             logging.info(f"Remove dir: {os.path.relpath(dirpath, self.ARGS.link_dst)}")
@@ -399,7 +399,7 @@ class PaL:
         logging.info(f"{file_path:50} -> {link_relpath}")
         
         # symlink or hardlink to dest path
-        self.link(file_path, link_path)
+        self.link(os.path.join(self.ARGS.media_src, file_path), link_path)
     
     def process_movie(self, file_paths):
         for file_path in file_paths:
