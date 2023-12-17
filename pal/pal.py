@@ -341,13 +341,16 @@ class PaL:
             # season in title
             if 'season' not in meta:
                 if re.search(r'(2nd Season)|(II)', meta['title'], re.I):
+                    m = re.search(r'(2nd Season)|(II)', meta['title'], re.I)
                     meta['season'] = 2
                     meta['title'] = meta['title'].replace(m.group(0), '').strip()
                     
                 elif re.search(r'(3rd Season)|(III)', meta['title'], re.I):
+                    m = re.search(r'(3rd Season)|(III)', meta['title'], re.I)
                     meta['season'] = 3
                     meta['title'] = meta['title'].replace(m.group(0), '').strip()
-                    
+                
+                # title - 2$
                 elif re.search(r'[\s_-]\d{1}$', meta['title']):
                     meta['season'] = int(meta['title'][-1])
                     meta['title'] = meta['title'][:-1].strip()
