@@ -102,11 +102,30 @@ python src/pal.py -s "/mnt/Disk2/BT/downloads/Video/Movie_anime" -d "/mnt/Disk2/
 │   └── TV_anime
 ```
 
-### 使用配置文件批量运行
+### 使用配置文件
 
-根据自己的媒体库路径，配置`config/example.json`文件，然后运行`run_config.py`脚本
+可以将需要刮削的目录添加到配置文件中，参考`config/example.json`。
+然后运行`run_config.py`脚本，脚本会对所有目录进行刮削。
 ```bash
 python run_config.py -c config/example.json
+```
+
+#### 监控目录模式
+
+监控模式(`-m`)会监听配置文件中的所有media_src目录，如果目录下创建新文件则会触发一次刮削。Ctrl-C停止程序。
+
+```bash
+python run_config.py -c config/example.json -m
+```
+
+### 使用docker运行
+
+使用docker配合上面的监控目录模式，可以实现后台自动刮削。需要注意配置文件中的路径需要使用docker内的路径。
+docker命令示例：
+```bash
+docker run -d --name pal \
+ -v /mnt:/MediaLib \
+ -v ./config/example.docker.json:/config.json my/pal
 ```
 
 ### 软链接注意事项

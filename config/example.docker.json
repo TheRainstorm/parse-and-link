@@ -1,0 +1,29 @@
+{
+    "default": {
+        "link_dst": "/MediaLib/Disk2/BT/links/",
+        "symbol_link": true,
+        "loglevel": "INFO"
+    },
+    "list": [
+        {
+            "media_src": "/MediaLib/Disk2/BT/downloads/Video/TV",
+            "type": 0
+        },
+        {
+            "media_src": "/MediaLib/Disk2/BT/downloads/Video/Movie",
+            "type": 1
+        },
+        {
+            "media_src": "/MediaLib/Disk2/BT/downloads/Video/TV_anime",
+            "type": 0,
+            "tv_folder": "TV_anime",
+            "movie_folder": "Movie_anime"
+        },
+        {
+            "media_src": "/MediaLib/Disk2/BT/downloads/Video/Movie_anime",
+            "type": 1,
+            "tv_folder": "TV_anime",
+            "movie_folder": "Movie_anime"
+        }
+    ]
+}
