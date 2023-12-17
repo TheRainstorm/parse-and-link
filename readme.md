@@ -52,7 +52,7 @@
 pip install -r requirements.txt
 ```
 
-### 命令参数
+### 单次运行pal.py脚本
 
 `src/pal.py`文件为主程序，使用`-h`查看帮助信息
 ```
@@ -102,7 +102,14 @@ python src/pal.py -s "/mnt/Disk2/BT/downloads/Video/Movie_anime" -d "/mnt/Disk2/
 │   └── TV_anime
 ```
 
-### 软链接下使用jellyfin容器
+### 使用配置文件批量运行
+
+根据自己的媒体库路径，配置`config/example.json`文件，然后运行`run_config.py`脚本
+```bash
+python run_config.py -c config/example.json
+```
+
+### 软链接注意事项
 
 软连接的优点是可以跨磁盘链接，如果是在host上安装jellyfin，则软链接和硬链接没有区别。但是如果要想在docker容器中使用软链接读取host上的对应的文件，需要满足一些条件。
 
@@ -120,9 +127,9 @@ docker run --name jellyfin \
     jellyfin/jellyfin
 ```
 
-### 识别错误后处理
+## 识别错误后处理
 
-**手动设置title等信息**
+### 手动设置title等信息
 
 手动修改源目录的数据文件`cache.json`
 - 对于识别不正确的，修改title即可
@@ -154,7 +161,7 @@ docker run --name jellyfin \
 2023-12-14 14:01:00 INFO 穿越时空的少女.2006.TWN.1080p.中日双语.简繁中字￡CMCT利姆鲁/[穿越时空的少女].The.Girl.Who.Leapt.Through.Time.TWN.2006.BluRay.1080p.x264.AC3.2Audios-CMCT.mkv -> Movie_anime/The Girl Who Leapt Through Time/The Girl Who Leapt Through Time (2006).1080p.mkv
 ```
 
-**忽略文件**
+### 忽略文件
 
 对于一些不必要的文件，可以在`skip.txt`中添加忽略规则，程序会忽略这些文件，并从数据库中删除。
 
@@ -181,7 +188,6 @@ Evangelion Shin Gekijouban 01-04/
 2023-12-14 15:54:51 INFO cache ignore: 5.Centimeters.Per.Second.2007.BluRay.1080p-ted423@FRDS/Extras/One.more.time,One.more.chance.mkv
 2023-12-14 15:54:51 INFO Remove: Movie_anime/One more time,One more chance/One more time,One more chance ().mkv
 ```
-
 
 ## TODO
 

@@ -3,17 +3,24 @@ import argparse
 import logging
 import re
 import json
+from types import SimpleNamespace
 
-from walklevel import walklevel
+if __name__ == "__main__":
+    from ignore_matcher import IgnoreMatcher
+    from walklevel import walklevel
+else:
+    from pal.ignore_matcher import IgnoreMatcher
+    from pal.walklevel import walklevel
 
 class PaL:
     def __init__(self):
+        self.parser = None
         self.ARGS = None
         self.video_exts = ['.mkv', '.mp4', '.avi']
         self.min_video_size = 100*1024*1024 # 100MB
         self.skip_dirnames = []
     
-    def load_args(self, argv=None):
+    def set_argparser(self):
         parser = argparse.ArgumentParser(
             description='PAL: parse metadata from filename, and link to dest path'
         )
@@ -74,17 +81,18 @@ class PaL:
         # parser.add_argument('--tmdbid',
         #                     default='',
         #                     help='specify the TMDb id')
-
-        self.ARGS = parser.parse_args(argv)
-        self.ARGS.media_src = os.path.expanduser(self.ARGS.media_src)
-        self.ARGS.link_dst = os.path.expanduser(self.ARGS.link_dst)
-        os.makedirs(self.ARGS.link_dst, exist_ok=True)
+        self.parser = parser
+        
+    def process_args(self, args):
+        args.media_src = os.path.expanduser(args.media_src)
+        args.link_dst = os.path.expanduser(args.link_dst)
+        os.makedirs(args.link_dst, exist_ok=True)
 
         # logging
-        numeric_level = getattr(logging, self.ARGS.loglevel.upper(), None)
+        numeric_level = getattr(logging, args.loglevel.upper(), None)
         if not isinstance(numeric_level, int):
-            raise ValueError('Invalid log level: %s' % self.ARGS.loglevel)
-        if self.ARGS.make_log:
+            raise ValueError('Invalid log level: %s' % args.loglevel)
+        if args.make_log:
             logging.basicConfig(filename='pal.log', level=numeric_level,
                                 format='%(asctime)s %(levelname)s %(message)s',
                                 datefmt='%Y-%m-%d %H:%M:%S')
@@ -94,7 +102,16 @@ class PaL:
                                 datefmt='%Y-%m-%d %H:%M:%S')
         
         # check type
-        self.ARGS.type = 'episode' if self.ARGS.type == 0 else 'movie'
+        args.type = 'episode' if args.type == 0 else 'movie'
+        self.ARGS = args
+        return args
+
+    def load_args_dicts(self, options):
+        args = "-s a -d b -t 0"
+        default_option = self.parser.parse_args(args.split())
+        options_new = default_option.__dict__.copy()
+        options_new.update(options)
+        return SimpleNamespace(**options_new)
     
     def is_videofile(self, filename):
         ext = os.path.splitext(filename)[1]
@@ -135,14 +152,7 @@ class PaL:
         
         return file_paths
 
-    def add_ignore_rule(self, rule):
-        ignorefile_path = os.path.join(self.ARGS.media_src, self.ARGS.ignore_rule)
-        with open(ignorefile_path, 'a', encoding='utf-8') as f:
-            f.write(rule+'\n')
-            
-    def ignore_files(self, file_paths):
-        from ignore_matcher import IgnoreMatcher
-        
+    def ignore_files(self, file_paths): 
         # create default ignore file
         ignorefile_path = os.path.join(self.ARGS.media_src, self.ARGS.ignore_rule)
         if not os.path.exists(ignorefile_path):
@@ -411,10 +421,17 @@ class PaL:
             else:
                 db[file_path] = meta
         self.cache = db
+
+    def pal(self, argv=None, options=None):
+        self.set_argparser()
+        if options is None:
+            args = self.parser.parse_args(argv)
+        else:
+            args = self.load_args_dicts(options)
+        self.process_args(args)
+        self.run()
     
-    def main(self, argv=None):
-        self.load_args(argv)
-        
+    def run(self):
         # read database(can be empty), self.cache
         self.read_database()
         # self.abspath2relpath()
@@ -455,4 +472,4 @@ class PaL:
 
 if __name__ == '__main__':
     pal = PaL()
-    pal.main()
+    pal.pal()
