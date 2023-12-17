@@ -11,7 +11,7 @@ COPY . .
 ARG PUID=1000
 ARG PGID=1000
 # create user
-RUN groupadd -g $PGID mygroup && useradd -u $PUID -g mygroup -m -d /home/myuser -s /bin/bash myuser \
-&& chown -R myuser:mygroup /parse-and-link
+RUN groupadd -g $PGID abc && useradd -u $PUID -g abc -m -d /home/abc -s /bin/bash abc \
+&& chown -R abc:abc /parse-and-link
 
 ENTRYPOINT [ "/parse-and-link/docker/entrypoint.sh" ]
