@@ -121,15 +121,19 @@ python run_config.py -c config/example.json -m
 ### 使用docker运行
 
 使用docker配合上面的监控目录模式，可以实现后台自动刮削。
-- 配置文件中的路径需要使用docker内媒体库的路径，可以参考`example.docker.json`
+- 配置文件中的路径需要使用docker内媒体库看见的路径，可以参考`example.docker.json`
 - 配置文件需要mount到容器`/config.json`路径
 - 镜像位于dockerhub `rzero/pal`
+- `PUID`和`PGID`环境变量用于指定容器内运行程序的用户ID和组ID。设置成host普通用户即可
+  - 如果容器创建的链接host无法访问，则说明该环境变量设置错误
 
 docker命令示例：
 ```bash
 docker run -d --name pal \
  -v /mnt:/MediaLib \
- -v ./config/example.docker.json:/config.json rzero/pal
+ -v ./config/example.docker.json:/config.json \
+ -e PGID=1000 \
+ -e PUID=1000 rzero/pal
 ```
 
 查看容器日志
@@ -148,11 +152,31 @@ docker logs -f pal
 ```
 而软链接目录为`/mnt/Disk2/BT/links`
 
-那么在运行jellyfin容器时，至少需要把links目录和所有做种目录的**最长公共前缀**目录挂载到容器中。示例情况中`/mnt/Disk1/BT/downloads`和`/mnt/Disk2/BT/links`最长公共目录为`/mnt/`，因此需要把`/mnt/`目录作为挂载参数。如果没有Disk1，则只需要挂载``/mnt/Disk2/BT`目录即可。示例docker命令
+那么在运行jellyfin容器时，至少需要把links目录和所有做种目录的**最长公共前缀**目录挂载到容器中。示例情况中`/mnt/Disk1/BT/downloads`和`/mnt/Disk2/BT/links`最长公共目录为`/mnt/`，因此需要把`/mnt/`目录作为挂载参数。如果没有Disk1，则只需要挂载`/mnt/Disk2/BT`目录即可。示例docker命令
 ```
 docker run --name jellyfin \
     -v /mnt/:/MediaLib \
     jellyfin/jellyfin
+```
+
+### 自动刷新Jellyfin
+
+下载新电影或者剧集后，通常需要手动刷新Jellyfin媒体库，才能看到新剧集。为了避免该步骤，可以使用Jellyfin的API接口，自动刷新媒体库。
+
+首先需要在Jellyfin网页中生成API KEY，位于控制台->API密钥。
+生成后，运行`run_config.py`通过参数指定Jellyfin URL和API KEY
+
+```bash
+python run_config.py -c config/example.json -j http://host:8096 -k "xxxx"
+```
+
+如果使用docker，则在docker run时通过环境变量指定
+```
+docker run -d --name pal \
+ -v /mnt:/MediaLib \
+ -v ./config/example.docker.json:/config.json \
+ -e JELLYFIN_URL="http://host:8096" \
+ -e JELLYFIN_API_KEY="xxxx" rzero/pal
 ```
 
 ## 识别错误后处理
