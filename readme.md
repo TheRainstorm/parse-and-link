@@ -120,12 +120,21 @@ python run_config.py -c config/example.json -m
 
 ### 使用docker运行
 
-使用docker配合上面的监控目录模式，可以实现后台自动刮削。需要注意配置文件中的路径需要使用docker内的路径。
+使用docker配合上面的监控目录模式，可以实现后台自动刮削。
+- 配置文件中的路径需要使用docker内媒体库的路径，可以参考`example.docker.json`
+- 配置文件需要mount到容器`/config.json`路径
+- 镜像位于dockerhub `rzero/pal`
+
 docker命令示例：
 ```bash
 docker run -d --name pal \
  -v /mnt:/MediaLib \
- -v ./config/example.docker.json:/config.json my/pal
+ -v ./config/example.docker.json:/config.json rzero/pal
+```
+
+查看容器日志
+```
+docker logs -f pal
 ```
 
 ### 软链接注意事项
