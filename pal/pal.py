@@ -274,6 +274,15 @@ class PaL:
         meta['failed'] = 0
         
         # return value
+        '''code
+        0: ok
+        1: no season
+        2: miss title
+        3: miss type
+        4: miss episode
+        5: bad season
+        9: link exist
+        '''
         code, msg = 0, "ok"
         
         # little fix
@@ -382,7 +391,7 @@ class PaL:
         if meta['type'] == 'episode':
             # /link/TV/Title/Season 1/Title-S01E01.2160p.mkv
             link_relpath = os.path.join(self.ARGS.tv_folder, meta['title'], f"Season {meta['season']}", f"{meta['title']}-S{meta['season']:02d}E{meta['episode']:02d}{resolution_str}{ext_name}")
-        elif meta['type'] == 'movie':
+        else: #movie
             # /link/Movie/Title (year)/Title (year).2160p.mkv
             year_str = f" ({meta['year']})" if meta['year'] else ''
             link_relpath = os.path.join(self.ARGS.movie_folder, f"{meta['title']}{year_str}", f"{meta['title']}{year_str}{resolution_str}{ext_name}")
@@ -396,13 +405,14 @@ class PaL:
             link_path_old = os.path.join(self.ARGS.link_dst, meta['link_relpath'])
             self.delete_related_file(link_path_old, meta['type'])
         
-        # update meta
-        meta['link_relpath'] = link_relpath
-        
         link_path = os.path.join(self.ARGS.link_dst, link_relpath)
         # link exists, skip
         if os.path.exists(link_path):
+            meta['code'] = 9  # link exists
             return
+        
+        # update meta
+        meta['link_relpath'] = link_relpath
         
         # ensure the link dir exists
         os.makedirs(os.path.dirname(link_path), exist_ok=True)
