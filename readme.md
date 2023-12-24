@@ -248,11 +248,11 @@ Evangelion Shin Gekijouban 01-04/
 - [x] cache加速，将每个file_path: metadata记录到文件
 - [x] 默认链接目录下子目录和src目录名一致。但是为了解决混合目录情况，必须同时指定tv,movie目录。
 - [x] 错误处理，记录到日志文件。
-- [ ] 剧集集数识别算法：按照title分组，组内不确定集数的filename，需要让整个group的缺失集数最少。（缺失集数：min-max中interval之和）
-- [ ] 相似title合并，在剧集识别算法之前
-- [ ] 使用GPT对识别错误的文件重新处理
+- [x] cache.json中使用相对路径。从而可以移动src目录
+- [x] ~~剧集集数识别算法：按照title分组，组内不确定集数的filename，需要让整个group的缺失集数最少。（缺失集数：min-max中interval之和）~~ 识别准确度足够高，目前不需要
+- [x] ~~使用GPT对识别错误的文件重新处理~~。缺点：1）输出结果存在不确定性。2）耗时。因此该功能性价比不高
+- [ ] 相似title合并，使得同一剧集相同季或不同季均使用相同title。jellyfin媒体库支持合并相同标题的剧集，但是不会合并相同标题不同季度的剧集（感觉可以提个issue）
 - [ ] 复制原本存在的字幕文件
-- [ ] cache.json中使用相对路径。从而可以移动src目录
 - [ ] 联网检查识别结果
 
 ### 相似title合并
@@ -263,6 +263,13 @@ Evangelion Shin Gekijouban 01-04/
 
 [EMBER] NieR-Automata Ver1.1a - 02.mkv             -> TV_anime/NieR-Automata Ver1 1a/Season 1/NieR-Automata Ver1 1a-S01E02.mkv
 ```
+
+### title存在于目录中
+
+```
+胶囊计划.Capsule.S02.2022.2160p.WEB-DL.H265.AAC-HHWEB/Capsule.S02E01.2022.2160p.WEB-DL.H265.AAC-HHWEB.mp4
+```
+由于只识别文件名，因此识别出的标题是`Capsules`，而不是`胶囊计划`。
 
 ### 识别错误
 
@@ -501,7 +508,6 @@ GuessIt found: {
 需要跳过SPs, Specials, Previews, Extra, Extra/DVD Special，等多级目录。可以在获取文件列表时就过滤
 ```
 [VCB-Studio] Sword Art Online II [Ma10p_1080p]/Previews/[VCB-Studio] Sword Art Online II [Preview10][Ma10p_1080p][x265_flac].mkv
-
 ```
 
 OVA，可能位于一级目录

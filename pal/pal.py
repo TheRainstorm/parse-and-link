@@ -270,48 +270,51 @@ class PaL:
     def get_meta(self, file_path):
         filename = os.path.basename(file_path)
         meta = self.parse_filename_guessit(filename)
-        
         # clear failed flag
         meta['failed'] = 0
         
-        code = 0
-        # check meta
+        # return value
+        code, msg = 0, "ok"
+        
+        # little fix
         if 'screen_size' not in meta:
             meta['screen_size'] = ''
         if 'year' not in meta:
             meta['year'] = ''
         
-        # title failed
-        if 'title' not in meta:
-            # fix title
-            fixed = False
-            if re.match(r'^(\[[^\]]+\])+(\(.*\))?\..*$', filename): # [xxx][title][xxx].mkv
-                parts = re.split(r'\[|\]', filename)
-                filename = max(parts, key=len) # get longest part
-                filename = filename.strip().replace('_', ' ')
-                meta['title'] = filename
-                fixed = True
-                # meta_new = self.parse_filename_guessit(filename_sub)
-                # if 'title' in meta_new:
-                #     meta['title'] = meta_new['title']
-            if not fixed:
-                self.miss_title_files.append({file_path:meta})
-                meta['code'] = 2
-                return meta, 2, "miss title"
-        
-        # if meta type is not same as ARGS.type
-        if meta['type'] != self.ARGS.type:
-            # have ep and no year
-            if re.search(r'\b\d{1,2}\b', filename) and \
-                not re.search(r'\b\d{4}\b', filename):
-                meta['type'] = 'episode'
-            else:
-                self.miss_type_files.append({file_path:meta})
-                meta['code'] = 3
-                return meta, 3, "miss type"
-        
-        if self.ARGS.type == 'episode':
-            if 'episode' not in meta:
+        # try fix: title -> type -> episode -> season
+        def try_fix():
+            # title
+            def fix_title():
+                m = re.match(r'^(\[[^\]]+\])+(\(.*\))?\..*$', filename)
+                if m: # [xxx][title][xxx].mkv
+                    parts = re.split(r'\[|\]', filename)
+                    filename = max(parts, key=len) # get longest part
+                    filename = filename.strip().replace('_', ' ')
+                    meta['title'] = filename
+                    return True
+                return False
+            
+            if 'title' not in meta:
+                fixed = fix_title()
+                if not fixed:
+                    self.miss_title_files.append({file_path:meta})
+                    code, msg = 2, "miss title"
+                    return
+            
+            # type not consistent
+            if meta['type'] != self.ARGS.type:
+                # have ep and no year
+                if re.search(r'\b\d{1,2}\b', filename) and \
+                    not re.search(r'\b\d{4}\b', filename):
+                    meta['type'] = 'episode'
+                else:
+                    self.miss_type_files.append({file_path:meta})
+                    code, msg = 3, "miss type"
+                    return
+            
+            # episode
+            def fix_episode():
                 # [01]
                 m = re.search(r'\[(\d{2})\]', filename)
                 if m:
@@ -322,44 +325,51 @@ class PaL:
                     meta['episode'] = ep
                     if 'season' in meta_new:
                         meta['season'] = meta_new['season']
+                    return
                 # - 9
-                elif re.search(r'\b\d{1,2}\b', filename):
-                    m = re.search(r'\b(\d{1,2})\b', filename)
+                m = re.search(r'\b(\d{1,2})\b', filename)
+                if m:
                     meta['episode'] = int(m.group(1))
-                else:
-                    meta['episode'] = []
-            if type(meta['episode'])==list:
-                self.miss_ep_files.append({file_path:meta})
-                meta['code'] = 4
-                return meta, 4, "miss episode"
+                    return
+                meta['episode'] = []
             
-            # season fix
-            if 'season' in meta and type(meta['season'])==list:
-                meta['code'] = 5
-                return meta, 5, "bad season"
-            
-            # season in title
-            if 'season' not in meta:
-                if re.search(r'(2nd Season)|(II)', meta['title'], re.I):
-                    m = re.search(r'(2nd Season)|(II)', meta['title'], re.I)
+            def fix_season():
+                # can't fix
+                if 'season' in meta and type(meta['season'])==list:
+                    code, msg = 5, "bad season"
+                    return
+                # season in title
+                m = re.search(r'(2nd Season)|(II)', meta['title'], re.I)
+                if m:
                     meta['season'] = 2
                     meta['title'] = meta['title'].replace(m.group(0), '').strip()
-                    
-                elif re.search(r'(3rd Season)|(III)', meta['title'], re.I):
-                    m = re.search(r'(3rd Season)|(III)', meta['title'], re.I)
+                    return
+                m = re.search(r'(3rd Season)|(III)', meta['title'], re.I)
+                if m:
                     meta['season'] = 3
                     meta['title'] = meta['title'].replace(m.group(0), '').strip()
-                
+                    return
                 # title - 2$
-                elif re.search(r'[\s_-]\d{1}$', meta['title']):
+                if re.search(r'[\s_-]\d{1}$', meta['title']):
                     meta['season'] = int(meta['title'][-1])
                     meta['title'] = meta['title'][:-1].strip()
-                
-                else:
-                    meta['season'] = 1
-                    code = 1
-
-        return meta, code, "ok"
+                    return
+                # simple fix
+                meta['season'] = 1
+                code = 1
+            
+            if self.ARGS.type == 'episode':
+                if 'episode' not in meta:
+                    fix_episode()
+                if type(meta['episode'])==list:
+                    self.miss_ep_files.append({file_path:meta})
+                    code, msg = 4, "miss episode"
+                    return
+                if 'season' not in meta:
+                    fix_season()
+        try_fix()
+        meta['code'] = code
+        return meta, code, msg
 
     def make_link(self, file_path, meta):
         # make up link path
