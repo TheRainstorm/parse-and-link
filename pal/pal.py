@@ -298,9 +298,9 @@ class PaL:
                 m = re.match(r'^(\[[^\]]+\])+(\(.*\))?\..*$', filename)
                 if m: # [xxx][title][xxx].mkv
                     parts = re.split(r'\[|\]', filename)
-                    filename = max(parts, key=len) # get longest part
-                    filename = filename.strip().replace('_', ' ')
-                    meta['title'] = filename
+                    filename_ = max(parts, key=len) # get longest part
+                    filename_ = filename_.strip().replace('_', ' ')
+                    meta['title'] = filename_
                     return True
                 return False
             
@@ -328,9 +328,9 @@ class PaL:
                 m = re.search(r'\[(\d{2})\]', filename)
                 if m:
                     ep = int(m.group(1))
-                    filename = filename.replace(m.group(0), '')
+                    filename_ = filename.replace(m.group(0), '')
                     # reparse, may fix season
-                    meta_new = self.parse_filename_guessit(filename)
+                    meta_new = self.parse_filename_guessit(filename_)
                     meta['episode'] = ep
                     if 'season' in meta_new:
                         meta['season'] = meta_new['season']

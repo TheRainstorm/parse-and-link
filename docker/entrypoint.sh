@@ -4,7 +4,7 @@ PUID=${PUID:-1000}
 PGID=${PGID:-1000}
 
 if [ `id -u abc` -ne $PUID ]; then
-    usermod -u $PUID myuser
+    usermod -u $PUID abc
 fi
 if [ `id -g abc` -ne $PGID ]; then
     groupmod -g $PGID abc
