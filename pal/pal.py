@@ -293,6 +293,7 @@ class PaL:
         
         # try fix: title -> type -> episode -> season
         def try_fix():
+            nonlocal code, msg
             # title
             def fix_title():
                 m = re.match(r'^(\[[^\]]+\])+(\(.*\))?\..*$', filename)
@@ -346,26 +347,24 @@ class PaL:
                 # can't fix
                 if 'season' in meta and type(meta['season'])==list:
                     code, msg = 5, "bad season"
-                    return
+                    return True
                 # season in title
                 m = re.search(r'(2nd Season)|(II)', meta['title'], re.I)
                 if m:
                     meta['season'] = 2
                     meta['title'] = meta['title'].replace(m.group(0), '').strip()
-                    return
+                    return True
                 m = re.search(r'(3rd Season)|(III)', meta['title'], re.I)
                 if m:
                     meta['season'] = 3
                     meta['title'] = meta['title'].replace(m.group(0), '').strip()
-                    return
+                    return True
                 # title - 2$
                 if re.search(r'[\s_-]\d{1}$', meta['title']):
                     meta['season'] = int(meta['title'][-1])
                     meta['title'] = meta['title'][:-1].strip()
-                    return
-                # simple fix
-                meta['season'] = 1
-                code = 1
+                    return True
+                return False
             
             if self.ARGS.type == 'episode':
                 if 'episode' not in meta:
@@ -375,7 +374,10 @@ class PaL:
                     code, msg = 4, "miss episode"
                     return
                 if 'season' not in meta:
-                    fix_season()
+                    if not fix_season():
+                        # simple fix
+                        meta['season'] = 1
+                        code = 1
         try_fix()
         meta['code'] = code
         return meta, code, msg
@@ -403,6 +405,7 @@ class PaL:
                 return
             # different, remove old and relink new
             link_path_old = os.path.join(self.ARGS.link_dst, meta['link_relpath'])
+            logging.info(f"Remove: {os.path.relpath(link_path_old, self.ARGS.link_dst)}")
             self.delete_related_file(link_path_old, meta['type'])
         
         link_path = os.path.join(self.ARGS.link_dst, link_relpath)
@@ -488,7 +491,10 @@ class PaL:
                 meta['failed'] = 0  # delete failed flag when handing failed files
             if meta['failed'] == 1: # failed meta, skip
                 continue
-            self.make_link(file_path, meta)
+            try:
+                self.make_link(file_path, meta)
+            except:
+                logging.error(f"Make link failed: {file_path} {meta}")
         
         # save cache
         self.save_database()
