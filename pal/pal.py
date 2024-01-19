@@ -310,6 +310,8 @@ class PaL:
                     self.miss_title_files.append({file_path:meta})
                     code, msg = 2, "miss title"
                     return
+            if ':' in meta['title']: # fix: SMB windows display bug
+                meta['title'] = meta['title'].replace(':', ' ')
             
             # type not consistent
             if meta['type'] != self.ARGS.type:
