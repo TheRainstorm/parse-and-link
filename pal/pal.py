@@ -32,16 +32,10 @@ class PaL:
                             '--link-dst',
                             required=True,
                             help='the dest path link to')
-        # parser.add_argument('--tmdb-api-key',
-        #                     # required=True,
-        #                     help='Search API for the tmdb id, and gen dirname as Name (year)\{tmdbid=xxx\}')
         parser.add_argument('-S',
                             '--symbol-link',
                             action='store_true',
                             help='use symbolic link rather than hard link')
-        # parser.add_argument('--only-link',
-        #                     action='store_true',
-        #                     help='don\'t save .nfo file in the media dir')
         parser.add_argument('-t',
                             '--type',
                             type=int,
@@ -53,9 +47,8 @@ class PaL:
         parser.add_argument('--movie-folder',
                             default="Movie",
                             help='Specify the linking category-dir of Movie, default `Movie`')
-        parser.add_argument('--ignore-rule',
-                            default="skip.txt",
-                            help='Specific ignored files and directories. One rule per line. `!` cancel ignoring')
+        parser.add_argument('--db-path',
+                            help='Specify the database path')
         parser.add_argument('--keep-sub',
                             action='store_true',
                             help='Keep subtitles files(\'srt,ass\')')
@@ -100,6 +93,10 @@ class PaL:
             logging.basicConfig(level=numeric_level,
                                 format='%(asctime)s %(levelname)s %(message)s',
                                 datefmt='%Y-%m-%d %H:%M:%S')
+        if args.db_path:
+            self.cache_path = args.db_path
+        else:
+            self.cache_path = os.path.join(args.link_dst, 'db', f'{os.path.basename(args.media_src)}.json')
         
         # check type
         args.type = 'episode' if args.type == 0 else 'movie'
@@ -141,10 +138,7 @@ class PaL:
                 # delete link
                 if 'link_relpath' in meta:
                     link_path_old = os.path.join(self.ARGS.link_dst, meta['link_relpath'])
-                    if os.path.exists(link_path_old) or \
-                       os.path.islink(link_path_old): # link broken
-                        logging.info(f"Remove: {os.path.relpath(link_path_old, self.ARGS.link_dst)}")
-                        self.delete_related_file(link_path_old, meta['type'])
+                    self.delete_related_file(link_path_old, meta['type'])
                 delete_path.append(file_path)
         # delete the excess file in database
         for file_path in delete_path:
@@ -154,11 +148,12 @@ class PaL:
 
     def ignore_files(self, file_paths): 
         # create default ignore file
-        ignorefile_path = os.path.join(self.ARGS.media_src, self.ARGS.ignore_rule)
+        ignorefile_path = os.path.join(self.ARGS.media_src, 'skip.txt')
         if not os.path.exists(ignorefile_path):
             with open(ignorefile_path, 'w', encoding='utf-8') as f:
                 f.write('/Sample\n')
                 f.write('/SP\n')     # SPs, SP DISK
+                f.write('/Special\n')     # SPs, SP DISK
                 f.write('Extras/\n')
         ignorer = IgnoreMatcher(ignorefile_path)
         
@@ -217,33 +212,37 @@ class PaL:
                     os.remove(file_path)
             os.rmdir(dirpath)
         
-        if not os.path.exists(file_path):
+        if os.path.exists(file_path) or \
+           os.path.islink(file_path): # broken link: not exist but is link
+            logging.info(f"Remove: {os.path.relpath(file_path, self.ARGS.link_dst)}")
+            os.remove(file_path)
+        else:
             return
         
-        os.remove(file_path)
-        
-        if type == 'movie':
-            dirpath = os.path.join(file_path, "..")
-        else:
-            dirpath = os.path.join(file_path, "../../")
+        dirpath = os.path.join(file_path, "..")
         dirpath = os.path.abspath(dirpath)
         
+        # delete move dir or season
         if check_empty(dirpath):
             logging.info(f"Remove dir: {os.path.relpath(dirpath, self.ARGS.link_dst)}")
             delete_dir(dirpath)
-        
+        if type == 'episode':
+            dirpath = os.path.join(file_path, "../../")
+            dirpath = os.path.abspath(dirpath)
+            if check_empty(dirpath):
+                logging.info(f"Remove dir: {os.path.relpath(dirpath, self.ARGS.link_dst)}")
+                delete_dir(dirpath)
+
     def read_database(self):
         cache = {}
-        cache_path = os.path.join(self.ARGS.media_src, 'cache.json')
-        if os.path.exists(cache_path):
-            with open(cache_path, 'r', encoding='utf-8') as f:
+        if os.path.exists(self.cache_path):
+            with open(self.cache_path, 'r', encoding='utf-8') as f:
                 cache = json.load(f)
         
         self.cache = cache
     
     def save_database(self):
-        cache_path = os.path.join(self.ARGS.media_src, 'cache.json')
-        with open(cache_path, 'w', encoding='utf-8') as f:
+        with open(self.cache_path, 'w', encoding='utf-8') as f:
             json.dump(self.cache, f, ensure_ascii=False, indent=2, default=str)
     
     def clear_miss_files(self):
@@ -399,23 +398,25 @@ class PaL:
             link_relpath = os.path.join(self.ARGS.movie_folder, f"{meta['title']}{year_str}", f"{meta['title']}{year_str}{resolution_str}{ext_name}")
 
         # already linked and not change dst
-        if 'link_relpath' in meta and not self.ARGS.force_relink_check:
+        if 'link_relpath' in meta:
             # same link path, skip
-            if meta['link_relpath'] == link_relpath:
+            if meta['link_relpath'] == link_relpath and not self.ARGS.force_relink_check:
                 return
-            # different, remove old and relink new
-            link_path_old = os.path.join(self.ARGS.link_dst, meta['link_relpath'])
-            logging.info(f"Remove: {os.path.relpath(link_path_old, self.ARGS.link_dst)}")
-            self.delete_related_file(link_path_old, meta['type'])
+            if meta['link_relpath'] != link_relpath:
+                # different, remove old and relink new
+                link_path_old = os.path.join(self.ARGS.link_dst, meta['link_relpath'])
+                self.delete_related_file(link_path_old, meta['type'])
         
         link_path = os.path.join(self.ARGS.link_dst, link_relpath)
-        # link exists, skip
-        if os.path.exists(link_path):
-            meta['code'] = 9  # link exists
-            return
-        
         # update meta
         meta['link_relpath'] = link_relpath
+        
+        # link exists, skip
+        if os.path.exists(link_path):
+            if not self.ARGS.force_relink_check:
+                meta['code'] = 9  # link exists, duplicate source
+            return
+        meta['code'] = 0
         
         # ensure the link dir exists
         os.makedirs(os.path.dirname(link_path), exist_ok=True)

@@ -2,7 +2,8 @@
     "default": {
         "link_dst": "/mnt/Disk2/BT/links/",
         "symbol_link": true,
-        "loglevel": "INFO"
+        "loglevel": "INFO",
+        "force_relink_check": true
     },
     "list": [
         {
