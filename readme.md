@@ -44,7 +44,73 @@
   - 最使用chatgpt API识别
 - 支持识别错误时，简单地进行手动修正。最好是提供一个文件供用户编辑（而不是在在网页中点来点去）
 
+## Features/TODO
+
+TODO
+- [x] 同时支持软链接和硬链接模式
+- [x] ~~剧集集数识别算法：按照title分组，组内不确定集数的filename，需要让整个group的缺失集数最少。（缺失集数：min-max中interval之和）~~ 识别准确度足够高，目前不需要
+- [x] ~~使用GPT对识别错误的文件重新处理~~。缺点：1）输出结果存在不确定性。2）耗时。因此该功能性价比不高
+- [x] 使用配置文件，按照配置一次性扫描多个源目录
+- [x] 监控模式。监控目录，有新文件时自动调用
+- [x] 支持docker。解决容器内通过软链接访问host文件问题
+- [ ] 相似title合并，使得同一剧集相同季或不同季均使用相同title。jellyfin媒体库支持合并相同标题的剧集，但是不会合并相同标题不同季度的剧集（感觉可以提个issue）
+- [ ] 复制原本存在的字幕文件
+- [ ] 联网检查识别结果
+
+**Big feauture TODO**
+
+感觉实现了以下这些功能，软件的用途就可以进化了。
+
+- [ ] 支持转码模式，将h264格式视频转码成h265/av1格式，以节省空间。
+- [ ] 支持解析jellyfin的nfo文件，反过来更新数据库元信息。有了正确的标题名后，可以使得链接目录变得更加漂亮。并且也可以支持对数据库进行一些分析，比如可以美观地打印数据库的列表，分享给他人等。
+
+### 视频转码模式构想
+
+软链接和硬链接用户的不同使用场景，导致转码模式的需要实现的功能不同：
+- 硬链接目录，任何时候都可以停止某个种子做种，删除源文件。因此适合将转码视频直接输出到目标目录，这和链接到目标目录基本没有区别。
+- 软链接用户的特点是源目录和链接目录一般情况下会共存（但也要求可以无损失地删除链接目录）。通常会手动删除某个源文件（决定不再做种）。因此适合先将转码视频输出到链接目录，当删除源文件时，再将转码视频移动到源目录，修改数据库项，并重新链接，保持软链接名不变（这样在jellyfin处没有影响）
+- 目前实现无论软硬连接，删除源视频时，都会删除链接视频。原本有用的特性与转码模式是相悖的。不过可以简单的在数据库中标记这个源视频的链接视频是否是转码视频，是的话则不删除，仅删除数据库项（也可以将转码视频单独存放在数据库另一个key中，以便以后使用）
+
+由于转码是一个耗时的任务，因此在没有转码完成时，还是先用原本的链接模式。转码完成后再按照以上逻辑进行链接的替换。**需要一个后台线程运行**。
+
+那么目前的单次运行脚本的逻辑需要重构了，重构逻辑：
+- 一份配置文件，指定源目录和链接目录，链接模式等
+- pal.py脚本支持server模式：开启一个进程，监听其它进程的请求。
+  - 请求单个目录的扫描和链接
+  - 请求单个文件
+  - 请求应包含目录或文件，以及其它config
+  - pal.py脚本应仍支持原本的单次运行模式
+- run_config.py脚本监听目录，当有新文件时通过IPC通知pal进程
+
+并不是所有视频都想要进行转码，需要提供一个选择视频是否转码的机制
+- 所有视频都不转码。即关闭转码模式
+- rule列表
+  - 匹配表达式
+    - 源编码格式
+    - 源视频码率表达式
+    - 源视频分辨率表达式
+  - target: non, h264, h265, av1
+  - ffmpeg参数: crf, preset等
+- 手动修改数据库文件，然后请求pal server进行一次扫描
+
+### 相似title合并
+
+标题细微差别，但是被分为不同目录
+```
+[Nekomoe kissaten&LoliHouse] NieR Automata Ver1.1a - 01 [WebRip 1080p HEVC-10bit AAC ASSx2].mkv -> TV_anime/NieR Automata Ver1 1a/Season 1/NieR Automata Ver1 1a-S01E01.1080p.mkv
+
+[EMBER] NieR-Automata Ver1.1a - 02.mkv             -> TV_anime/NieR-Automata Ver1 1a/Season 1/NieR-Automata Ver1 1a-S01E02.mkv
+```
+
 ## 使用
+
+本项目有如下几种使用方式：
+- 单次运行`pal.py`脚本
+- 使用配置文件，运行`run_config.py`脚本
+- 使用配置文件，运行`run_config.py`的监控模式
+- 使用**docker**运行`run_config.py`的监控模式
+
+对于识别错误的电影剧集，可以直接修改json文件快速修复元信息，详见[识别错误后处理](#识别错误后处理)章节
 
 ### 安装
 
@@ -183,7 +249,7 @@ docker run -d --name pal \
 
 ### 手动设置title等信息
 
-手动修改源目录的数据文件`cache.json`
+手动修改链接目录下`db/xxx.json`文件中文件的元信息
 - 对于识别不正确的，修改title即可
 - 对于识别失败的(`failed=1`)，设置好title后，删除`failed`字段
 
@@ -241,41 +307,11 @@ Evangelion Shin Gekijouban 01-04/
 2023-12-14 15:54:51 INFO Remove: Movie_anime/One more time,One more chance/One more time,One more chance ().mkv
 ```
 
-## TODO
-
-- [x] symlink和link完美替换
-- [x] revese-link文件，记录链接文件原始路径
-- [x] cache加速，将每个file_path: metadata记录到文件
-- [x] 默认链接目录下子目录和src目录名一致。但是为了解决混合目录情况，必须同时指定tv,movie目录。
-- [x] 错误处理，记录到日志文件。
-- [x] cache.json中使用相对路径。从而可以移动src目录
-- [x] ~~剧集集数识别算法：按照title分组，组内不确定集数的filename，需要让整个group的缺失集数最少。（缺失集数：min-max中interval之和）~~ 识别准确度足够高，目前不需要
-- [x] ~~使用GPT对识别错误的文件重新处理~~。缺点：1）输出结果存在不确定性。2）耗时。因此该功能性价比不高
-- [ ] 相似title合并，使得同一剧集相同季或不同季均使用相同title。jellyfin媒体库支持合并相同标题的剧集，但是不会合并相同标题不同季度的剧集（感觉可以提个issue）
-- [ ] 复制原本存在的字幕文件
-- [ ] 联网检查识别结果
-
-### 相似title合并
-
-标题细微差别，但是被分为不同目录
-```
-[Nekomoe kissaten&LoliHouse] NieR Automata Ver1.1a - 01 [WebRip 1080p HEVC-10bit AAC ASSx2].mkv -> TV_anime/NieR Automata Ver1 1a/Season 1/NieR Automata Ver1 1a-S01E01.1080p.mkv
-
-[EMBER] NieR-Automata Ver1.1a - 02.mkv             -> TV_anime/NieR-Automata Ver1 1a/Season 1/NieR-Automata Ver1 1a-S01E02.mkv
-```
-
-### title存在于目录中
-
-```
-胶囊计划.Capsule.S02.2022.2160p.WEB-DL.H265.AAC-HHWEB/Capsule.S02E01.2022.2160p.WEB-DL.H265.AAC-HHWEB.mp4
-```
-由于只识别文件名，因此识别出的标题是`Capsules`，而不是`胶囊计划`。
-
-### 识别错误
+## 常见识别错误
 
 #### type识别错误
 
-识别正确，但是和指定的类型不同
+识别正确，但是和指定的类型不同（比如剧集里夹杂的剧场版）
 ```
 For: 向着明亮那方.To.the.Bright.Side.2022.1080p.WEB-DL.AAC2.0.H264-HDSWEB.mp4
 GuessIt found: {
@@ -431,6 +467,13 @@ GuessIt found: {
     "type": "episode"
 }
 ```
+
+title存在于目录中
+
+```
+胶囊计划.Capsule.S02.2022.2160p.WEB-DL.H265.AAC-HHWEB/Capsule.S02E01.2022.2160p.WEB-DL.H265.AAC-HHWEB.mp4
+```
+由于只识别文件名，因此识别出的标题是`Capsules`，而不是`胶囊计划`。
 
 #### season错误
 
