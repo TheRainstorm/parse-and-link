@@ -1,1 +1,8 @@
-.gitignore
+.git
+
+*
+!requirements.txt
+!pal
+!docker
+!*.py
+__pycache__

@@ -8,4 +8,5 @@ tv.json
 tv_anime.json
 movie.json
 movie_anime.json
-MediaLib/
+MediaLib
+config/_*.json

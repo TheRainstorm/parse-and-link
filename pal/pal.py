@@ -34,6 +34,9 @@ class PaL:
         parser.add_argument('-H', '--hard-link',
                             action='store_true',
                             help='use hard link rather than symbol link')
+        parser.add_argument('-S', '--symbol-link',
+                            action='store_true',
+                            help='use symbol link rather than hard link')
         parser.add_argument('-t', '--type',
                             type=int,
                             default=0,
@@ -229,7 +232,7 @@ class PaL:
     def link(self, src, dst):
         if self.ARGS.dryrun:
             return
-        if not self.ARGS.hard_link:
+        if self.ARGS.symbol_link or not self.ARGS.hard_link:
             if os.path.islink(dst):
                 os.remove(dst)
             os.symlink(os.path.relpath(src, os.path.dirname(dst)), dst)
@@ -540,8 +543,8 @@ class PaL:
         return cvt_file_paths
     
     def pal(self, argv=None, options=None):
+        parser = self.get_argparser()
         if options is None:
-            parser = self.get_argparser()
             args = parser.parse_args(argv)
         else:
             args = self.load_args_dicts(options, parser)
@@ -576,7 +579,8 @@ class PaL:
                 continue
             try:
                 self.make_link(file_path, meta)
-            except:
+            except Exception as e:
+                logging.error(f"{e}")
                 logging.error(f"Make link failed: {file_path} \n{json.dumps(meta, ensure_ascii=False, indent=2, default=str)}")
         
         # write database
