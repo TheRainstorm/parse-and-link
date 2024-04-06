@@ -287,17 +287,17 @@ class PaL:
                 delete_dir(dirpath)
 
     def read_database(self):
-        db = {}
+        self.db_all = {}
         if os.path.exists(self.db_path):
             with open(self.db_path, 'r', encoding='utf-8') as f:
-                db = json.load(f)
-        
-        self.db = db
+                self.db_all = json.load(f)
+        self.db = self.db_all.get(self.ARGS.media_src, {})
     
     def save_database(self):
+        self.db_all[self.ARGS.media_src] = self.db
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
         with open(self.db_path, 'w', encoding='utf-8') as f:
-            json.dump(self.db, f, ensure_ascii=False, indent=2, default=str)
+            json.dump(self.db_all, f, ensure_ascii=False, indent=2, default=str)
     
     def clear_failed_files(self):
         self.failed_files = {}
