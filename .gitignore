@@ -10,3 +10,4 @@ movie.json
 movie_anime.json
 MediaLib
 config/_*.json
+db/
