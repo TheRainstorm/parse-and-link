@@ -216,9 +216,17 @@ class PaL:
         # filter files
         filter_files = []
         for file_path in file_paths:
+            if file_path in self.db:
+                # delete files setted ignored manually
+                if 'ignore' in self.db[file_path]:
+                    # if already linked, remove
+                    if 'link_relpath' in self.db[file_path]:
+                        self.remove_link(self.db[file_path]['link_relpath'], self.db[file_path]['type'])
+                        del self.db[file_path]['link_relpath']
+                    continue
             if ignorer.is_ignored(file_path):
                 logging.debug(f"Ignore: {file_path}")
-                if file_path in self.db:
+                if file_path in self.db: 
                     logging.info(f"db found ignored: {file_path}")
                     # if already linked, remove
                     if 'link_relpath' in self.db[file_path]:

@@ -307,6 +307,14 @@ Evangelion Shin Gekijouban 01-04/
 2023-12-14 15:54:51 INFO Remove: Movie_anime/One more time,One more chance/One more time,One more chance ().mkv
 ```
 
+在 db 中手动添加 ignore 键，会自动删除已有链接。
+```json
+"[DBD-Raws][绝狼：龙之血][01-13TV全集+特典映像][1080P][BDRip][HEVC-10bit][FLAC][MKV]/特典映像/[DBD-Raws][绝狼：龙之血][特典映像][03][480P][DVDRip][AVC][AC3].mkv": {
+  "ignore": 1
+},
+```
+
+
 ## 常见识别错误
 
 #### type识别错误
