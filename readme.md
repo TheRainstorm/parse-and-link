@@ -184,6 +184,14 @@ python run_config.py -c config/example.json
 python run_config.py -c config/example.json -m
 ```
 
+#### 监控删除源文件
+
+监控链接目录，在 jellyfin 中删除影视后，会自动删除源文件，和更新数据库。
+
+```shell
+python3 monitor.py -d /mnt/Disk1/BT/links/db -l /mnt/Disk1/BT/links
+```
+
 ### 使用docker运行
 
 使用docker配合上面的监控目录模式，可以实现后台自动刮削。
