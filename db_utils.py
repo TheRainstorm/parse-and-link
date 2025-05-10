@@ -126,6 +126,7 @@ def delete_link_src(db_dir, link_dst, link_path):
     prefix_matcheds = find_prefix_matched(link_index, link_path)
     
     # delete all
+    modified_db_files = set()
     for link_file_path,index_info in prefix_matcheds.items():
         src_file_path = os.path.join(index_info['media_src'], index_info['src_file'])
         
@@ -135,6 +136,7 @@ def delete_link_src(db_dir, link_dst, link_path):
         # delete dir if empty
         try_delete_file_parent_dir(src_file_path)
         
+        modified_db_files.add(index_info['db_file'])
         db = db_all[index_info['db_file']]
         # print("before", db_check_file(db, index_info['media_src'], index_info['src_file']))
         db_delete_file(db, index_info['media_src'], index_info['src_file'])
@@ -148,6 +150,8 @@ def delete_link_src(db_dir, link_dst, link_path):
     else:
         # update db finally
         for db_file, db in db_all.items():
+            if db_file not in modified_db_files:
+                continue
             db_path = os.path.join(db_dir, db_file)
             save_db(db_path, db)
     
