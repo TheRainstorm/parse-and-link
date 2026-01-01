@@ -298,6 +298,7 @@ class PaL:
         self.db_all = {}
         if os.path.exists(self.db_path):
             with open(self.db_path, 'r', encoding='utf-8') as f:
+                print(f"{self.db_path=}")
                 self.db_all = json.load(f)
         self.db = self.db_all.get(self.ARGS.media_src, {})
     
@@ -472,13 +473,19 @@ class PaL:
 
     def make_link(self, file_path, meta):
         # make up link path
+        version_tags = []
+        if '1080' not in meta['screen_size']:
+            version_tags.append(meta['screen_size'])  # 2160p, 720p
+        version_str_ = '|'.join(version_tags)  # connect multiple tags
+        version_str = f" - {version_str_}" if version_str_ else '' # check empty
         if meta['type'] == 'episode':
-            # /link/TV/Title/Season 1/Title-S01E01.2160p.mkv
-            link_relpath = os.path.join(self.ARGS.tv_folder, meta['title'], f"Season {meta['season']}", f"{meta['title']}-S{meta['season']:02d}E{meta['episode']:02d}{meta['resolution_str']}{meta['ext']}")
+            # /link/TV/Title/Season 1/Title-S01E01 - 2160p.mkv
+            link_relpath = os.path.join(self.ARGS.tv_folder, meta['title'], f"Season {meta['season']}", f"{meta['title']}-S{meta['season']:02d}E{meta['episode']:02d}{version_str}{meta['ext']}")
         else: #movie
-            # /link/Movie/Title (year)/Title (year).2160p.mkv
+            # /link/Movie/Title (year)/Title (year) - 2160p.mkv
             year_str = f" ({meta['year']})" if meta['year'] else ''
-            link_relpath = os.path.join(self.ARGS.movie_folder, f"{meta['title']}{year_str}", f"{meta['title']}{year_str}{meta['resolution_str']}{meta['ext']}")
+            
+            link_relpath = os.path.join(self.ARGS.movie_folder, f"{meta['title']}{year_str}", f"{meta['title']}{year_str}{version_str}{meta['ext']}")
 
         # already linked
         if 'link_relpath' in meta:
